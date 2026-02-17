@@ -1,0 +1,37 @@
+---
+title: "NBA/NHL Expected Points and Points Over Expected Analysis"
+author: "Kanaan Law, Kaleb Coleman, Drianna Walker"
+date: "Spring 2026"
+output:
+  pdf_document:
+    toc: false
+    number_sections: true
+---
+
+# Abstract
+
+The ultimate goal is an end-to-end examination of multiple sports, offensive strategy, and player performance. We detail a comprehensive shot dataset compiled via a custom data pipeline spanning the 2014-15 through 2025-26 seasons. Using this data, we develop an expected field goal (xFG) model via logistic regression, achieving 63% accuracy and an AUC-ROC of 0.653. Building on this foundation, we have three deliverables: (1) Residual Analysis to identify players who over/underperform expectations, (2) a Shot Difficulty Index (SDI) quantifying shot complexity, and (3) role-aware GMM clustering to identify player shot archetypes. We then integrate salary data to contextualize performance via POE per \$1M and a complementary FG% residual vs salary view that isolates shot-making independent of free throws. Results highlight Luke Kennard as a top overperformer (+12.3% residual) and surface distinct shot-profile archetypes (e.g., Paint-Dominant and Perimeter-Focused profiles).
+
+We also detail a comprehensive shot dataset for NHL data from 2007-2024. We develop an expected goal model using LASSO regression to identify key predictors of goal scoring. The top predictors identified are shotPlayContinuedInZone, shotGeneratedRebound, and shotGoalieFroze. Building on this, there are deliverables parallel to the NBA analysis for evaluating metrics across sports: Residual Analysis to identify individual shooters who either excel or fall short of goal expectations, an SDI quantifying the likelihood and complexity of a shot based on distance, angle, and live time situations, and clustering of shot types to identify player shot archetypes.
+
+# Models
+
+- Heatmaps for NBA and NHL shot locations
+- Shot charts for both leagues
+- Expected field goal (xFG) model (NBA): logistic regression
+- Expected goal (xG) model (NHL): LASSO regression
+- GMM clustering for player shot archetypes
+
+# Data
+
+## NBA
+
+The NBA dataset comes from the official NBA Stats API and the ESPN API, representing the industry standard for basketball analytics. The NBA Stats API is uniquely reliable because its "Shots" data is derived from a league-wide, multi-camera optical tracking system that captures player and ball movement at 25 frames per second, ensuring precise x,y coordinate accuracy for every attempt. This data undergoes a rigorous human-in-the-loop verification process by on-site professional statisticians and centralized league monitors to ensure event data perfectly aligns with physical tracking. Because these endpoints provide the same structural consistency used by NBA front offices for roster management and by academic researchers for advanced shot-quality modeling, they offer the most credible and longitudinal foundation for large-scale data analysis across multiple seasons.
+
+## NHL
+
+The NHL dataset came from a website called MoneyPuck. This website is very transparent about where the data is from and the methodologies. There is also expert validation when it comes to reviewing the sets, and using them to make models to predict future games with fairly high accuracy across different metrics. The contents on this website include raw data, such as what we are using from it, as well as the analytics and predictions using this data. The website includes an incredibly detailed explanation of every unique variable and concept such as "Flurry Adjusted xG," with examples. The website also openly acknowledges limitations in the data such as coordinate inaccuracies, which they have gone back through and adjusted to ensure the data is as accurate as possible. All of these factors together form an extremely high credibility for the NHL Goals MoneyPuck dataset.
+
+# Potential Problems
+
+The main foreseeable problem with this project is being able to compare metrics between NHL and NBA due to the difference in salary caps and the overall number of points typically scored in a game. On top of that, both datasets are very large with a lot of data that is probably not useful to our exact goal with this project. Coming up with metrics that are comparable and that allow for cross-sport analysis seems to be a primary problem, though POE (Points Over Expected) will allow us to do so more easily.
