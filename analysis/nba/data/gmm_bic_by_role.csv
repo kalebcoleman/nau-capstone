@@ -1,0 +1,12 @@
+role,k,bic,n_players,min_cluster_size,at_boundary,selection_reason,selected
+Wing,2,1202.1973240903355,203,84,True,candidate,False
+Wing,3,1090.586903355872,203,33,False,lowest_bic_with_size_constraint,True
+Wing,4,1192.7316661030368,203,26,False,candidate,False
+Wing,5,1456.6132102776355,203,25,False,candidate,False
+Wing,6,1580.8629355362687,203,3,True,candidate,False
+Guard,2,284.8206564840199,44,18,True,candidate,False
+Guard,3,350.2079079212027,44,12,False,candidate,False
+Guard,4,280.316368020514,44,6,False,candidate,False
+Guard,5,79.4449192094844,44,4,True,lowest_bic_with_size_constraint,True
+Big,2,156.58159857773882,27,13,True,candidate,False
+Big,3,-112.50654399827818,27,5,True,lowest_bic_with_size_constraint,True

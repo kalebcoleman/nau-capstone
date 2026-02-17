@@ -1,0 +1,429 @@
+"""
+Expected Points (xP) Analysis for NBA Shot Prediction.
+
+Uses Logistic Regression to predict shot success probability,
+calculates Expected Points (xP) for each shot, and computes
+Points Over Expected (POE).
+
+Features:
+- Spatial: LOC_X, LOC_Y, shot distance, shot angle
+- Shot type: layup, dunk, jump shot, hook, floater
+- Context: period, game clock, clutch indicator
+- Zone: SHOT_ZONE_BASIC, SHOT_ZONE_AREA
+
+Accuracy: ~63% (near ceiling without defender tracking data)
+"""
+
+import os
+import sys
+from pathlib import Path
+from datetime import datetime
+
+import joblib
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import (
+    classification_report,
+    roc_auc_score,
+    log_loss,
+    accuracy_score,
+)
+
+# Add analysis directory to path to allow imports if run from root
+ANALYSIS_DIR = Path(__file__).parent
+sys.path.append(str(ANALYSIS_DIR))
+
+# Import from utils
+from utils.court_utils import draw_half_court, setup_shot_chart_axes
+
+
+# Configuration - standalone (CSV-based)
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+# Directories
+MODEL_DIR = SCRIPT_DIR / "models"
+DATA_DIR = SCRIPT_DIR / "data"
+FIGURES_DIR = SCRIPT_DIR / "figures"
+TRAINING_DATA_PATH = DATA_DIR / "nba_shots_training.csv.gz"
+
+# Create directories if they don't exist
+for d in [MODEL_DIR, DATA_DIR, FIGURES_DIR]:
+    d.mkdir(exist_ok=True)
+
+
+def get_rolling_window_seasons(target_season, window_size=5):
+    """
+    Generate list of training seasons for rolling window.
+
+    For target_season='2025-26' with window_size=5:
+    Returns ['2020-21', '2021-22', '2022-23', '2023-24', '2024-25']
+
+    This captures the modern 3PT era while providing sufficient training data.
+    """
+    start_year = int(target_season.split("-")[0])
+    training_seasons = []
+    for i in range(window_size, 0, -1):
+        year = start_year - i
+        season = f"{year}-{str(year + 1)[-2:]}"
+        training_seasons.append(season)
+    return training_seasons
+
+
+def load_shot_data(seasons, season_type="regular"):
+    """
+    Load NBA shot chart data from SQLite database.
+
+    Args:
+        seasons: Single season string or list of seasons
+        season_type: 'regular' or 'playoffs'
+
+    Returns:
+        DataFrame with shot data from all requested seasons
+    """
+    if isinstance(seasons, str):
+        seasons = [seasons]
+
+    # Read from gzipped CSV (pandas auto-detects compression)
+    df = pd.read_csv(TRAINING_DATA_PATH)
+
+    # Filter by season and season_type
+    df = df[df["season"].isin(seasons)]
+    # Note: season_type column already filtered in export (regular only)
+
+    if df.empty:
+        print(
+            f"Warning: No data found for seasons={seasons}, season_type={season_type}"
+        )
+    return df
+
+
+def engineer_features(df):
+    """Create features for shot prediction."""
+    df = df.copy()
+
+    # Convert to numeric
+    for col in [
+        "LOC_X",
+        "LOC_Y",
+        "SHOT_MADE_FLAG",
+        "SHOT_DISTANCE",
+        "PERIOD",
+        "MINUTES_REMAINING",
+        "SECONDS_REMAINING",
+    ]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df.dropna(subset=["LOC_X", "LOC_Y", "SHOT_MADE_FLAG", "ACTION_TYPE"], inplace=True)
+
+    # Spatial features
+    df["shot_distance_feet"] = df["SHOT_DISTANCE"].fillna(
+        np.sqrt(df["LOC_X"] ** 2 + df["LOC_Y"] ** 2) / 10
+    )
+    df["shot_angle"] = np.arctan2(df["LOC_X"], df["LOC_Y"].clip(lower=1))
+
+    # Game clock
+    df["seconds_in_period"] = df["MINUTES_REMAINING"].fillna(0) * 60 + df[
+        "SECONDS_REMAINING"
+    ].fillna(0)
+
+    # Clutch (last 2 min of 4th/OT)
+    df["is_clutch"] = ((df["PERIOD"] >= 4) & (df["seconds_in_period"] <= 120)).astype(
+        int
+    )
+
+    # Shot type indicators
+    action = df["ACTION_TYPE"].str.lower().fillna("")
+    df["is_layup"] = action.str.contains("layup|finger roll").astype(int)
+    df["is_dunk"] = action.str.contains("dunk").astype(int)
+    df["is_jump_shot"] = action.str.contains(
+        "jump shot|pullup|step back|fadeaway"
+    ).astype(int)
+    df["is_hook"] = action.str.contains("hook").astype(int)
+    df["is_floater"] = action.str.contains("float").astype(int)
+
+    # Shot value
+    df["shot_value"] = df["SHOT_TYPE"].apply(lambda x: 3 if "3PT" in str(x) else 2)
+
+    return df
+
+
+def build_model():
+    """Build logistic regression pipeline with preprocessing."""
+    numeric_features = [
+        "LOC_X",
+        "LOC_Y",
+        "shot_distance_feet",
+        "shot_angle",
+        "PERIOD",
+        "seconds_in_period",
+        "is_clutch",
+        "is_layup",
+        "is_dunk",
+        "is_jump_shot",
+        "is_hook",
+        "is_floater",
+    ]
+    categorical_features = ["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA"]
+
+    preprocessor = ColumnTransformer(
+        [
+            ("num", StandardScaler(), numeric_features),
+            (
+                "cat",
+                OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+                categorical_features,
+            ),
+        ]
+    )
+
+    pipeline = Pipeline(
+        [
+            ("preprocessor", preprocessor),
+            (
+                "classifier",
+                LogisticRegression(solver="lbfgs", max_iter=1000, random_state=42),
+            ),
+        ]
+    )
+
+    return pipeline, numeric_features + categorical_features
+
+
+def generate_visualizations(df, season, output_dir):
+    """Generate shot distribution and distance analysis plots."""
+    plt.style.use("fivethirtyeight")
+
+    # Shot distribution chart
+    fig, ax = plt.subplots(figsize=(12, 11))
+    draw_half_court(ax, outer_lines=True)
+
+    made = df[df["SHOT_MADE_FLAG"] == 1]
+    missed = df[df["SHOT_MADE_FLAG"] == 0]
+
+    ax.scatter(
+        missed["LOC_X"],
+        missed["LOC_Y"],
+        c="r",
+        marker="x",
+        s=10,
+        alpha=0.3,
+        label="Miss",
+    )
+    ax.scatter(
+        made["LOC_X"], made["LOC_Y"], c="g", marker="o", s=15, alpha=0.5, label="Make"
+    )
+
+    setup_shot_chart_axes(ax)
+    ax.set_title(f"NBA Shot Distribution: {season} Season", fontsize=18)
+    ax.legend(fontsize=12)
+
+    plt.savefig(output_dir / f"shot_chart_{season}.png", dpi=300, bbox_inches="tight")
+    print(f"Saved: {output_dir / f'shot_chart_{season}.png'}")
+    plt.close()
+
+    # Shot distance analysis
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12), sharex=True)
+
+    distance_bins = df.groupby(df["shot_distance_feet"].round())
+    distance_analysis = (
+        distance_bins["SHOT_MADE_FLAG"].agg(["count", "mean"]).reset_index()
+    )
+    distance_analysis.columns = ["distance", "attempts", "fg_pct"]
+    distance_analysis = distance_analysis[distance_analysis["distance"] <= 35]
+
+    ax1.bar(
+        distance_analysis["distance"],
+        distance_analysis["attempts"],
+        width=0.8,
+        alpha=0.8,
+        color="skyblue",
+    )
+    ax1.set_title(f"NBA Shot Distribution by Distance ({season})", fontsize=16)
+    ax1.set_ylabel("Number of Attempts")
+    ax1.axvline(x=23.75, linestyle="--", color="grey", label="3-Point Line")
+    ax1.legend()
+
+    ax2.plot(
+        distance_analysis["distance"],
+        distance_analysis["fg_pct"],
+        marker="o",
+        linestyle="-",
+        color="orangered",
+    )
+    ax2.set_title(f"NBA Field Goal % by Distance ({season})", fontsize=16)
+    ax2.set_xlabel("Shot Distance (feet)")
+    ax2.set_ylabel("Field Goal Percentage")
+    ax2.axvline(x=23.75, linestyle="--", color="grey")
+
+    plt.savefig(
+        output_dir / f"shot_distance_analysis_{season}.png",
+        dpi=300,
+        bbox_inches="tight",
+    )
+    print(f"Saved: {output_dir / f'shot_distance_analysis_{season}.png'}")
+    plt.close()
+
+
+if __name__ == "__main__":
+    TARGET_SEASON = "2025-26"
+    SEASON_TYPE = "regular"
+    ROLLING_WINDOW = 5  # Number of prior seasons for training
+
+    if not TRAINING_DATA_PATH.exists():
+        raise FileNotFoundError(
+            f"Training data not found at {TRAINING_DATA_PATH}. Please ensure nba_shots_training.csv.gz exists."
+        )
+
+    # Generate rolling window training seasons
+    training_seasons = get_rolling_window_seasons(
+        TARGET_SEASON, window_size=ROLLING_WINDOW
+    )
+    print(f"Rolling Window Training: {training_seasons}")
+    print(f"Target Season (Out-of-Sample): {TARGET_SEASON}")
+    print("=" * 60)
+
+    # Load TRAINING data (5 prior seasons)
+    print(
+        f"\nLoading training data from {training_seasons[0]} to {training_seasons[-1]}..."
+    )
+    train_df = load_shot_data(training_seasons, SEASON_TYPE)
+    print(f"Loaded {len(train_df):,} training shots")
+
+    train_df = engineer_features(train_df)
+    print(f"After cleaning: {len(train_df):,} training shots")
+
+    if train_df.empty:
+        raise SystemExit("No training shots available. Check data source.")
+
+    # Load TARGET data (current season - true out-of-sample)
+    print(f"\nLoading target season {TARGET_SEASON}...")
+    target_df = load_shot_data(TARGET_SEASON, SEASON_TYPE)
+    print(f"Loaded {len(target_df):,} target shots")
+
+    target_df = engineer_features(target_df)
+    print(f"After cleaning: {len(target_df):,} target shots")
+
+    if target_df.empty:
+        raise SystemExit("No target shots available. Check season data.")
+
+    # Generate visualizations for target season
+    print("\nGenerating visualizations...")
+    generate_visualizations(target_df, TARGET_SEASON, FIGURES_DIR)
+
+    # Prepare features
+    feature_cols = [
+        "LOC_X",
+        "LOC_Y",
+        "shot_distance_feet",
+        "shot_angle",
+        "PERIOD",
+        "seconds_in_period",
+        "is_clutch",
+        "is_layup",
+        "is_dunk",
+        "is_jump_shot",
+        "is_hook",
+        "is_floater",
+        "SHOT_ZONE_BASIC",
+        "SHOT_ZONE_AREA",
+    ]
+
+    X_train = train_df[feature_cols].copy()
+    y_train = train_df["SHOT_MADE_FLAG"].astype(int)
+
+    X_target = target_df[feature_cols].copy()
+    y_target = target_df["SHOT_MADE_FLAG"].astype(int)
+
+    print(
+        f"\nTrain (prior 5 seasons): {len(X_train):,} | Target (out-of-sample): {len(X_target):,}"
+    )
+
+    # Train model on prior 5 seasons
+    print("\nTraining Logistic Regression on rolling window data...")
+    model, _ = build_model()
+    model.fit(X_train, y_train)
+
+    # Evaluate on TARGET season (true out-of-sample)
+    y_pred = model.predict(X_target)
+    y_pred_proba = model.predict_proba(X_target)[:, 1]
+
+    print("\n" + "=" * 60)
+    print("MODEL RESULTS (Out-of-Sample Evaluation)")
+    print(f"Training: {training_seasons[0]} to {training_seasons[-1]}")
+    print(f"Evaluation: {TARGET_SEASON}")
+    print("=" * 60)
+
+    accuracy = accuracy_score(y_target, y_pred)
+    auc_roc = roc_auc_score(y_target, y_pred_proba)
+    logloss = log_loss(y_target, y_pred_proba)
+
+    # Brier Score for probability calibration
+    from sklearn.metrics import brier_score_loss
+
+    brier = brier_score_loss(y_target, y_pred_proba)
+
+    print(f"Accuracy:     {accuracy:.4f}")
+    print(f"AUC-ROC:      {auc_roc:.4f}")
+    print(f"Log Loss:     {logloss:.4f}")
+    print(f"Brier Score:  {brier:.4f}")
+    print("\nClassification Report:")
+    print(classification_report(y_target, y_pred))
+
+    metrics_path = DATA_DIR / "model_metrics_xfg.csv"
+    metrics_df = pd.DataFrame(
+        [
+            {
+                "model": "xFG (Logistic Regression)",
+                "train_seasons": f"{training_seasons[0]} to {training_seasons[-1]}",
+                "eval_season": TARGET_SEASON,
+                "season_type": SEASON_TYPE,
+                "accuracy": accuracy,
+                "auc_roc": auc_roc,
+                "log_loss": logloss,
+                "brier_score": brier,
+                "n_train": len(X_train),
+                "n_eval": len(X_target),
+                "updated_at": datetime.now().isoformat(timespec="seconds"),
+            }
+        ]
+    )
+    metrics_df.to_csv(metrics_path, index=False)
+    print(f"Saved metrics: {metrics_path}")
+
+    # Save model
+    model_path = MODEL_DIR / f"xp_model_{TARGET_SEASON}.joblib"
+    joblib.dump(model, model_path)
+    print(f"Model saved to: {model_path}")
+
+    # Generate xP and POE for TARGET season (true out-of-sample predictions)
+    print("\nGenerating xP and POE for target season (out-of-sample)...")
+    target_df["xP_prob"] = y_pred_proba
+    target_df["xP_value"] = target_df["xP_prob"] * target_df["shot_value"]
+    target_df["actual_points"] = target_df["SHOT_MADE_FLAG"] * target_df["shot_value"]
+    target_df["POE"] = target_df["actual_points"] - target_df["xP_value"]
+
+    # Save enriched data
+    output_path = DATA_DIR / f"shots_with_xp_{TARGET_SEASON}.parquet"
+    target_df.to_parquet(output_path)
+    print(f"Saved: {output_path}")
+
+    # Top shots by POE
+    print("\nTop 5 shots with highest POE:")
+    top_cols = ["PLAYER_NAME", "ACTION_TYPE", "shot_distance_feet", "xP_prob", "POE"]
+    print(target_df.nlargest(5, "POE")[top_cols].to_string(index=False))
+
+    print("\n" + "=" * 60)
+    print("ANALYSIS COMPLETE")
+    print(
+        f"Model trained on: {len(X_train):,} shots ({training_seasons[0]} to {training_seasons[-1]})"
+    )
+    print(
+        f"Predictions on:   {len(X_target):,} shots ({TARGET_SEASON}) - TRUE OUT-OF-SAMPLE"
+    )
+    print("=" * 60)

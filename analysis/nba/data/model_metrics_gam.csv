@@ -1,0 +1,2 @@
+model,train_seasons,eval_season,season_type,accuracy,auc_roc,log_loss,brier_score,n_train,n_eval,updated_at
+GAM (PyGAM),2020-21 to 2024-25,2025-26,regular,0.6272136307650198,0.6537194912481025,0.6434208395495511,0.22677683428572712,1063152,146140,2026-02-16T19:58:04

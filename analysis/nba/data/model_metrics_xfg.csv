@@ -1,0 +1,2 @@
+model,train_seasons,eval_season,season_type,accuracy,auc_roc,log_loss,brier_score,n_train,n_eval,updated_at
+xFG (Logistic Regression),2020-21 to 2024-25,2025-26,regular,0.6273231148214041,0.6496103524948698,0.6461459638222,0.22794524652738696,1063152,146140,2026-02-16T19:54:05
