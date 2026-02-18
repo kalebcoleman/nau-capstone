@@ -10,6 +10,8 @@ analysis/nba/
 ├── calibration_diagnostics.py
 ├── gam_analysis.py
 ├── advanced_analytics.py
+├── sdi_analysis.py
+├── player_clustering.py
 ├── player_performance_analysis.py
 ├── shot_density.py
 ├── salary_collector.py
@@ -45,7 +47,7 @@ analysis/nba/
 2. `python expected_points_analysis.py`
 3. `python calibration_diagnostics.py`
 4. `python gam_analysis.py`
-5. `python advanced_analytics.py`
+5. `python advanced_analytics.py` (runs residuals, SDI, and clustering)
 6. `python player_performance_analysis.py`
 7. `python shot_density.py`
 8. `python salary_collector.py` (optional; precomputed salary CSV included)
