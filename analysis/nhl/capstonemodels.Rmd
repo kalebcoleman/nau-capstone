@@ -1,0 +1,558 @@
+---
+title: "Untitled"
+author: "Drianna Walker"
+date: "2026-02-16"
+output: html_document
+---
+
+```{r}
+# packages
+library(readxl)
+library(readr)
+library(glmnet)
+library(stats)
+```
+```{r}
+getwd()
+```
+
+```{r}
+setwd("C:/Users/drian/OneDrive")
+```
+```{r}
+
+# dataset
+options(timeout = 600)
+
+# Download from MoneyPuck
+download.file(
+  "https://peter-tanner.com/moneypuck/downloads/shots_2007-2024.zip",
+  "moneypuck_data/shots_2007-2024.zip",
+  mode = "wb"
+)
+unzip("moneypuck_data/shots_2007-2024.zip", list = TRUE)
+
+# extract
+unzip("moneypuck_data/shots_2007-2024.zip", exdir = "moneypuck_data")
+
+```
+
+```{r}
+nhl.data <- read_csv("moneypuck_data/shots_2007-2024.csv", show_col_types = FALSE)
+nhl.data <- nhl.data[complete.cases(nhl.data), ]
+```
+
+```{r}
+# expected goal vs goal scored
+
+# Calculate actual goal rate for each 10-foot distance
+distance_seq <- seq(0, max(nhl.data$shotDistance, na.rm = TRUE), by = 10)
+nhl.data$distance_group <- floor(nhl.data$shotDistance / 10) * 10
+
+actual_rate <- aggregate(goal ~ distance_group, data = nhl.data, FUN = mean)
+expected_rate <- aggregate(xGoal ~ distance_group, data = nhl.data, FUN = mean)
+
+# Combine data
+plot_data <- merge(actual_rate, expected_rate, by = "distance_group")
+colnames(plot_data) <- c("Distance", "Actual", "Expected")
+
+# Find max probability for scaling
+max_prob <- max(plot_data$Actual, plot_data$Expected, na.rm = TRUE)
+
+# bar plot
+barplot(height = t(as.matrix(plot_data[, c("Actual", "Expected")])),
+        names.arg = plot_data$Distance,
+        xlab = "Goal Probability",
+        ylab = "Distance from Goal (feet)",
+        main = "Scored vs Expected Goals by Distance",
+        col = c("steelblue4", "darkred"),
+        xlim = c(0,.35),  
+        horiz = TRUE,
+        las = 1,
+        beside = FALSE,
+        legend.text = c("Actual Goals", "Expected Goals"),
+        args.legend = list(x = "topright")) 
+```
+
+```{r}
+numeric_cols <- sapply(nhl.data, is.numeric)
+
+predictor_cols <- names(numeric_cols)[numeric_cols]
+predictor_cols <- predictor_cols[predictor_cols != "goal"]
+
+X <- as.matrix(nhl.data[, predictor_cols])
+y <- nhl.data$goal
+
+# Fit LASSO model
+lasso_model <- glmnet(X, y, family = "binomial", alpha = 1)
+
+# Cross-validation to find optimal lambda
+cv_lasso <- cv.glmnet(X, y, family = "binomial", alpha = 1)
+
+# Plot CV results
+plot(cv_lasso, main = "LASSO Cross-Validation for Goal Prediction")
+```
+```{r}
+nhl.data$residual <- nhl.data$goal - nhl.data$xGoal
+
+# Aggregate by player
+player_residuals <- aggregate(residual ~ shooterName, 
+                             data = nhl.data, 
+                             FUN = function(x) c(mean = mean(x), 
+                                                n = length(x)))
+player_residuals <- do.call(data.frame, player_residuals)
+colnames(player_residuals) <- c("shooterName", "residual_mean", "shots")
+
+# Filter for players with minimum shot attempts
+min_shots <- 100
+player_residuals <- player_residuals[player_residuals$shots >= min_shots, ]
+
+# Sort and get top/bottom 10
+player_residuals <- player_residuals[order(player_residuals$residual_mean, decreasing = TRUE), ]
+top_10 <- head(player_residuals, 10)
+bottom_10 <- tail(player_residuals, 10)
+plot_data <- rbind(top_10, bottom_10)
+
+# Horizontal bar plot
+par(mar = c(4, 8, 2, 2))
+barplot(plot_data$residual_mean * 100,
+        names.arg = plot_data$shooterName,
+        horiz = TRUE,
+        las = 1,
+        xlab = "Residual (Actual - Expected Goal %)",
+        ylab = "",
+        main = "Top 10 Overperformers & Underperformers vs xG",
+        col = ifelse(plot_data$residual_mean > 0, "steelblue", "darkred"),
+        xlim = c(min(plot_data$residual_mean * 100) - 2, 
+                 max(plot_data$residual_mean * 100) + 2),
+        cex.names=0.7)
+abline(v = 0, lty = 2, lwd = 1)
+legend("topright", 
+       legend = c("Overperformer", "Underperformer"),
+       fill = c("steelblue", "darkred"),
+       cex = 0.8)
+```
+
+```{r}
+# Get coefficients at optimal lambda
+optimal_lambda <- cv_lasso$lambda.min
+coefs <- as.matrix(coef(lasso_model, s = optimal_lambda))
+
+# Extract non-zero coefficients
+non_zero <- coefs[coefs != 0, ]
+non_zero <- non_zero[order(abs(non_zero), decreasing = TRUE)]
+
+# Create data frame of coefficients (excluding intercept)
+coef_df <- data.frame(
+  variable = names(non_zero[-1]),  # Exclude intercept
+  coefficient = non_zero[-1]
+)
+
+# Top most important predictors 
+top_pred <- coef_df[1:min(20, nrow(coef_df)), ]
+
+all_coefs <- coef_df[order(abs(coef_df$coefficient), decreasing = FALSE), ]
+bottom_pred <- all_coefs[1:min(20, nrow(all_coefs)), ]
+
+```
+
+
+```{r}
+#lasso predictors
+par(mar = c(5, 12, 4, 2))
+barplot(abs(bottom_pred$coefficient),
+        names.arg = bottom_pred$variable,
+        horiz = TRUE,
+        las = 1,
+        xlab = "Coefficient Magnitude",
+        ylab = "",
+        main = "LASSO Predictors for Goal Scoring",
+        col = "steelblue4",
+        xlim = c(0, 20),
+        cex.names = 0.8)
+```
+
+```{r}
+# Filter to ONLY shots that resulted in goals
+goal_shots <- nhl.data[nhl.data$goal == 1, ]
+
+# Analyze event patterns in goal-scoring plays
+summary(goal_shots$event)
+table(goal_shots$shotType)
+table(goal_shots$lastEventCategory)
+
+# Compare to non-goal shots
+nogool_shots <- nhl.data[nhl.data$goal == 0, ]
+
+# Compare means of key variables
+mean_goal <- colMeans(goal_shots[, c("shotDistance", "shotAngle", "xCord", "yCord")], na.rm = TRUE)
+mean_nogoal <- colMeans(nogool_shots[, c("shotDistance", "shotAngle", "xCord", "yCord")], na.rm = TRUE)
+
+comparison <- data.frame(
+  variable = names(mean_goal),
+  on_goals = mean_goal,
+  on_non_goals = mean_nogoal,
+  difference = mean_goal - mean_nogoal
+)
+
+print(comparison)
+```
+
+```{r}
+# Calculate Shot Difficulty Index (SDI) 
+
+# normalize shot distance
+max_dist <- max(nhl.data$shotDistance, na.rm = TRUE)
+nhl.data$difficulty_distance <- (nhl.data$shotDistance / max_dist) * 100
+
+# Shot angle difficulty (wider angle = harder)
+max_angle <- max(abs(nhl.data$shotAngle), na.rm = TRUE)
+nhl.data$difficulty_angle <-(abs(nhl.data$shotAngle) / max_angle) * 100
+
+# Rebound shots are harder
+nhl.data$difficulty_rebound <-ifelse(nhl.data$shotRebound == 1, 30, 0)
+
+# Goalie frozen difficulty
+nhl.data$difficulty_goalie_froze <- ifelse(nhl.data$shotGoalieFroze == 1, 20, 0)
+
+# Combine into SDI (0-100 scale)
+nhl.data$SDI <- (nhl.data$difficulty_distance * 0.4 + 
+                  nhl.data$difficulty_angle * 0.3 + 
+                  nhl.data$difficulty_rebound * 0.2 + 
+                  nhl.data$difficulty_goalie_froze * 0.1)
+
+# Aggregate by player
+player_stats <- aggregate(cbind(goal, SDI, xGoal) ~ shooterName, 
+                         data = nhl.data, 
+                         FUN = function(x) c(mean = mean(x), n = length(x)))
+
+# Clean up the aggregated data
+player_stats <- do.call(data.frame, player_stats)
+colnames(player_stats) <- c("shooterName", "goal_mean", "shots", 
+                           "SDI_mean", "SDI_n", "xGoal_mean", "xGoal_n")
+
+# Calculate residual
+player_stats$residual <- player_stats$goal_mean - player_stats$xGoal_mean
+
+# Filter for minimum shots
+min_shots <- 100
+player_stats <- player_stats[player_stats$shots >= min_shots, ]
+
+# Create the plot
+library(ggplot2)
+library(ggrepel)
+
+# Identify ONLY extreme players to label (much smaller set)
+top_5_residual <- head(player_stats[order(player_stats$residual, decreasing = TRUE), ], 5)
+bottom_5_residual <- tail(player_stats[order(player_stats$residual, decreasing = TRUE), ], 5)
+top_5_SDI <- head(player_stats[order(player_stats$SDI_mean, decreasing = TRUE), ], 5)
+bottom_5_goal <- head(player_stats[order(player_stats$goal_mean, decreasing = FALSE), ], 5)
+
+# Combine unique extreme players
+label_players <- unique(rbind(top_5_residual, bottom_5_residual, 
+                              top_5_SDI, bottom_5_goal))
+
+# Create base plot
+p <- ggplot(player_stats, aes(x = SDI_mean, y = goal_mean)) +
+  geom_point(aes(size = shots, color = residual), alpha = 0.6) +
+  scale_size_continuous(range = c(1, 4), name = "Shot Volume") +  # Smaller size range
+  scale_color_gradient2(low = "darkred", mid = "gray90", high = "darkgreen",
+                       midpoint = 0, name = "FG% Residual") +
+  geom_smooth(method = "lm", se = FALSE, color = "blue", linetype = "dashed", alpha = 0.5) +
+  labs(
+    title = "Shot Difficulty vs Actual Goal Percentage",
+    subtitle = "Players sized by volume, colored by FG% residual",
+    x = "Shot Difficulty Index (SDI)",
+    y = "Actual Goal %"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "right"
+  )
+
+# Add labels only for extreme players
+p + geom_text_repel(data = label_players,
+                    aes(label = shooterName), 
+                    size = 3,
+                    box.padding = 0.5,
+                    point.padding = 0.3,
+                    force = 3,
+                    max.overlaps = 50,
+                    min.segment.length = 0.2,
+                    segment.color = "grey50",
+                    segment.alpha = 0.5)
+```
+```{r}
+# Identify ONLY the most extreme players (smaller set)
+top_3_residual <- head(player_stats[order(player_stats$residual, decreasing = TRUE), ], 3)
+bottom_3_residual <- tail(player_stats[order(player_stats$residual, decreasing = TRUE), ], 3)
+top_3_SDI <- head(player_stats[order(player_stats$SDI_mean, decreasing = TRUE), ], 3)
+bottom_3_goal <- head(player_stats[order(player_stats$goal_mean, decreasing = FALSE), ], 3)
+
+# Combine unique extreme players
+label_players <- unique(rbind(top_3_residual, bottom_3_residual, 
+                              top_3_SDI, bottom_3_goal))
+
+# Create base plot
+p <- ggplot(player_stats, aes(x = SDI_mean, y = goal_mean)) +
+  geom_point(aes(size = shots, color = residual), alpha = 0.6) +
+  scale_size_continuous(range = c(1, 4), name = "Shot Volume") +
+  scale_color_gradient2(low = "darkred", mid = "gray90", high = "darkgreen",
+                       midpoint = 0, name = "FG% Residual") +
+  geom_smooth(method = "lm", se = FALSE, color = "blue", linetype = "dashed", alpha = 0.5) +
+  labs(
+    title = "NHL Shot Difficulty vs Actual Goal Percentage",
+    subtitle = "Players sized by volume, colored by FG% residual",
+    x = "Shot Difficulty Index (SDI)",
+    y = "Actual Goal %"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "right"
+  )
+
+# Add labels only for extreme players
+p + geom_text_repel(data = label_players,
+                    aes(label = shooterName), 
+                    size = 3,
+                    box.padding = 0.5,
+                    point.padding = 0.3,
+                    force = 3,
+                    max.overlaps = 20,
+                    min.segment.length = 0.2,
+                    segment.color = "grey50",
+                    segment.alpha = 0.5)
+```
+The equation to determine SDI is: SDI = 0.4DC + 0.3AC + 0.2RC + 0.1GFC, with DC being Distance Component, AC being Angle Component, RC being Rebound Component, and GFC being Goalie Froze Component.
+  This scatterplot displays the relationship between Shot Difficulty Index (SDI) and actual goal percentage for NHL players with at least 100 shots. Each point represents a player, with point size indicating shot volume color representing the residual, actual minus expected goal percentage. The dashed blue line shows the linear trend, while labeled points highlight extreme performers: players with the highest/lowest residuals, highest SDI, and lowest goal percentages. The negative slope confirms that higher difficulty shots result in lower goal percentages, with overperformers (green) and underperformers (red) identifies relative to expectations.
+
+```{r}
+# Calculate shots on goal and goal percentage by player
+player_shot_stats <- aggregate(cbind(shotWasOnGoal, goal) ~ shooterName, 
+                              data = nhl.data, 
+                              FUN = function(x) c(sum = sum(x), mean = mean(x), n = length(x)))
+
+# Clean up the aggregated data
+player_shot_stats <- do.call(data.frame, player_shot_stats)
+colnames(player_shot_stats) <- c("shooterName", 
+                                 "shots_on_goal_sum", "shots_on_goal_pct", "shots_on_goal_total_shots",
+                                 "goals_sum", "goal_pct", "total_shots")
+
+# Calculate goal percentage 
+player_shot_stats$goal_percentage <- player_shot_stats$goals_sum / player_shot_stats$total_shots * 100
+
+# Filter for minimum total shots
+min_shots <- 100
+player_shot_stats <- player_shot_stats[player_shot_stats$total_shots >= min_shots, ]
+
+# Sort by total shots
+player_shot_stats <- player_shot_stats[order(player_shot_stats$total_shots, decreasing = TRUE), ]
+
+# Get top 10 most shots and bottom 10 least shots
+most_shots <- head(player_shot_stats, 10)
+least_shots <- tail(player_shot_stats, 10)
+
+# Add category
+most_shots$category <- "Most Shots"
+least_shots$category <- "Least Shots"
+
+# Combine for plotting
+plot_data <- rbind(most_shots, least_shots)
+
+# Create side-by-side bar plot
+library(ggplot2)
+
+ggplot(plot_data, aes(x = reorder(shooterName, total_shots), y = goal_percentage, fill = category)) +
+  geom_col() ]+
+  geom_text(aes(label = paste0(total_shots, " shots")), 
+            hjust = -0.1, size = 3)+
+  coord_flip()+
+  scale_fill_manual(values = c("Most Shots" = "darkblue", "Least Shots" = "darkred")) +
+  labs(
+    title = "Goal Percentage: Players with Most vs Least Shot Volume",
+    subtitle = "Minimum 100 total shots | Numbers show total shot count",
+    x = "Player",
+    y = "Goal Percentage (%)",
+    fill = "Category"
+  )+
+  theme_minimal()+
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )+
+  scale_y_continuous(limits = c(0, max(plot_data$goal_percentage) * 1.2))
+```
+
+```{r}
+# Calculate shots and goal percentage by player
+player_stats <- aggregate(goal ~ shooterName, 
+                         data = nhl.data, 
+                         FUN = function(x) c(sum = sum(x), mean = mean(x), n = length(x)))
+
+# Clean up
+player_stats <- do.call(data.frame, player_stats)
+colnames(player_stats) <- c("shooterName", "goals", "goal_pct", "total_shots")
+
+# Calculate goal percentage
+player_stats$goal_pct <- player_stats$goal_pct * 100
+
+# Filter for minimum shots
+min_shots <- 50
+player_stats <- player_stats[player_stats$total_shots >= min_shots, ]
+
+# Identify top and bottom performers
+# Top goal scorers (highest goal %)
+top_goal_pct <- head(player_stats[order(player_stats$goal_pct, decreasing = TRUE), ], 5)
+# Bottom goal scorers (lowest goal %)
+bottom_goal_pct <- head(player_stats[order(player_stats$goal_pct, decreasing = FALSE), ], 5)
+# Highest volume shooters
+top_volume <- head(player_stats[order(player_stats$total_shots, decreasing = TRUE), ], 5)
+
+# Combine for labeling
+label_players <- unique(rbind(top_goal_pct, bottom_goal_pct, top_volume))
+
+# Create scatter plot
+library(ggplot2)
+library(ggrepel)
+
+ggplot(player_stats, aes(x = total_shots, y = goal_pct)) +
+  geom_point(alpha = 0.5, color = "steelblue3", size = 2) +
+  geom_smooth(method = "lm", se = FALSE, color = "darkred", linetype = "dashed") +
+  geom_text_repel(data = label_players,
+                  aes(label = shooterName),
+                  size = 3,
+                  box.padding = 0.5,
+                  point.padding = 0.3,
+                  force = 2,
+                  max.overlaps = 20,
+                  segment.color = "grey50",
+                  segment.alpha = 0.5) +
+  labs(
+    title = "Shot Volume vs Goal Percentage",
+    subtitle = "Each point represents a player with minimum 50 shots",
+    x = "Number of Shots",
+    y = "Goal Percentage (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  )
+```
+The scatterplot examines the relationship between total shot volume and goal percentage for NHL players with at least 100 shots. Each point represents a player, with the dashed red line showing the linear trend. Labeled points identify the top five players in goal percentage, bottom five players in goal percentage, and top five in shot volume. The trend line leaning relatively horizontal suggests that higher volume shooters do not necessarily have higher efficiency, highlighting the trade-off between quantity and quality of shots. Players such as Sam Colangelo demonstrate elite efficiency despite lower volume, while Sidney Crosby maintains solid percentages on high volume.
+
+```{r}
+# Calculate shots and goal percentage by player
+player_stats <- aggregate(cbind(goal, shotWasOnGoal) ~ shooterName, 
+                         data = nhl.data, 
+                         FUN = function(x) c(sum = sum(x), mean = mean(x), n = length(x)))
+
+# Clean up
+player_stats <- do.call(data.frame, player_stats)
+colnames(player_stats) <- c("shooterName", 
+                           "goals", "goal_pct", "total_shots",
+                           "sog", "sog_pct", "sog_total_shots")
+
+# Calculate goal percentage and SOG percentage
+player_stats$goal_pct <- player_stats$goal_pct * 100
+player_stats$sog_pct <- player_stats$sog_pct * 100
+
+# Filter for minimum total shots
+min_goals <- 1
+player_stats <- player_stats[player_stats$goals >= min_goals, ]
+
+# Sort by goals scored
+player_stats <- player_stats[order(player_stats$goals, decreasing = TRUE), ]
+
+# Get top 10 most goals and bottom 10 least goals
+most_goals <- head(player_stats, 10)
+least_goals <- tail(player_stats, 10)
+
+# Add category
+most_goals$category <- "Most Goals"
+least_goals$category <- "Least Goals"
+
+# Combine for plotting
+plot_data <- rbind(most_goals, least_goals)
+
+# Create side-by-side bar plot
+library(ggplot2)
+
+ggplot(plot_data, aes(x = reorder(shooterName, goals), y = goal_pct, fill = category)) +
+  geom_col() +
+  geom_text(aes(label = paste0(goals, " goals (", round(sog_pct, 1), "% SOG)")), 
+            hjust = -0.05, size = 3) +
+  coord_flip() +
+  scale_fill_manual(values = c("Most Goals" = "darkblue", "Least Goals" = "darkred")) +
+  labs(
+    title = "Goal Percentage: Players with Most vs Least Goals Scored",
+    subtitle = "Minimum 100 total shots | Labels show goals scored and SOG%",
+    x = "Player",
+    y = "Goal Percentage (%)",
+    fill = "Category"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  ) +
+  scale_y_continuous(limits = c(0, max(plot_data$goal_pct) * 1.3))
+```
+
+```{r}
+# GAM model- shot success based on distance
+gam_model <-gam(goal ~ s(shotDistance, bs= "tp"), 
+                 data = nhl.data, 
+                 family = binomial(),
+                 method = "REML")
+
+# prediction data for distance effect
+distance_range <-data.frame(shotDistance = seq(0, 100, length.out = 200))
+
+# Get predictions on link scale 
+predictions <-predict(gam_model, newdata = distance_range, type= "link", se.fit= TRUE)
+
+# median distance as baseline
+median_distance <-median(nhl.data$shotDistance, na.rm= TRUE)
+baseline_pred <-predict(gam_model, newdata = data.frame(shotDistance = median_distance), 
+                         type= "link")
+baseline_log_odds <-as.numeric(baseline_pred)
+
+# data centered at median distance
+plot_data <-data.frame(
+  distance = distance_range$shotDistance,
+  log_odds = predictions$fit - baseline_log_odds,
+  se_lower = predictions$fit - 1.96* predictions$se.fit - baseline_log_odds,
+  se_upper = predictions$fit + 1.96* predictions$se.fit - baseline_log_odds
+)
+
+ggplot(plot_data, aes(x = distance, y = log_odds))+
+  geom_ribbon(aes(ymin = se_lower, ymax = se_upper), alpha = 0.2, fill = "steelblue")+
+  geom_line(color = "darkblue", size = 1)+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50")+
+  #median goal line
+  geom_vline(xintercept = median_distance, linetype = "dotted", color = "green4", alpha = 0.5, linewidth= 2)+
+  #neutral zone boundaries
+  geom_vline(xintercept= 25, linetype="dashed", color="red")+
+  geom_vline(xintercept= 75, linetype="dashed", color="red")+
+  labs(
+    title = "GAM Distance Effect on Shot Success",
+    subtitle = paste0("Marginal Log-odds (relative to median distance: ", 
+                      round(median_distance, 1), " feet)"),
+    x = "Shot Distance (feet)",
+    y = "Marginal Log-odds Contribution"
+  )+
+  theme_minimal()+
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5)
+  )+
+  scale_x_continuous(breaks= seq(0, 100, by = 10))
+```
+  The generalized additive model (GAM) plot illustrates the marginal effect of shot distance on goal probability, controlling for contributing factors. The y-axis shows the log-odds contribution relative to the median shot distance, with the blue line representing the estimated smooth function and the shaded ribbon indicating 95% confidence intervals. The red dotted line marks the median distance at x=33.5, while the grey dashed line at y=0 represents the baseline. Shots taken from closer than 33.5 feet show positive log-odds contributions, meaning they have higher than average scoring probability, while shots beyond 33.5 feet show increasingly negative contributions. The steep overall negative trend confirms that as shot distance increases, the probability of scoring decreases dramatically, with shots beyond 60 feet showing significantly worse outcomes compared to the average shot. The slight increase in probability from 80-90ft is most likely due to when the goalie is pulled for an extra attacker, leaving shots from across the ice at a higher success rate, or the goalie being caught out of position.
