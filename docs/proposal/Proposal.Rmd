@@ -35,3 +35,4 @@ The NHL dataset came from a website called MoneyPuck. This website is very trans
 # Potential Problems
 
 The main foreseeable problem with this project is being able to compare metrics between NHL and NBA due to the difference in salary caps and the overall number of points typically scored in a game. On top of that, both datasets are very large with a lot of data that is probably not useful to our exact goal with this project. Coming up with metrics that are comparable and that allow for cross-sport analysis seems to be a primary problem, though POE (Points Over Expected) will allow us to do so more easily.
+
