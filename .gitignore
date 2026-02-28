@@ -13,3 +13,4 @@ __pycache__/
 *_cache/
 analysis/nhl/capstonemodels_files/
 docs/proposal/capstoneNHLProposalModels.html
+analysis/nhl/data/shots_2007-2024.csv

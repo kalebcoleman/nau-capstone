@@ -5,7 +5,7 @@ date: "Spring 2026"
 output:
   pdf_document:
     toc: false
-    number_sections: true
+    number_sections: false
 ---
 
 ```{r setup, include=FALSE}
@@ -13,8 +13,6 @@ knitr::opts_chunk$set(
   echo = FALSE,
   message = FALSE,
   warning = FALSE,
-  cache = FALSE,
-  autodep = TRUE,
   fig.width = 6.6,
   fig.height = 2.2,
   out.width = "0.88\\textwidth",
@@ -51,11 +49,11 @@ resolve_nhl_csv <- function() {
 NHL_CSV_PATH <- resolve_nhl_csv()
 ```
 
-# Abstract
+This proposal analyzes shooting efficiency in the NBA and NHL using probabilistic models and residual-based metrics. We estimate shot-level scoring probability with NBA xFG (logistic regression) and NHL xG (LASSO plus GAM diagnostics), then quantify deviations via Points/Goals Over Expected (POE) and the Shot Difficulty Index (SDI). The draft includes two NBA figures from the existing pipeline and two NHL figures derived from teammate data, each with concise interpretation. Deliverables are a reproducible R Markdown workflow, a balanced cross-league analysis, and a submission-ready 2-3 page PDF.
 
 This proposal evaluates shooting efficiency in the NBA and NHL with expected probability models and residual-based performance metrics. We use NBA xFG (logistic regression) and NHL xG (LASSO + GAM diagnostics) to estimate scoring probability at the shot level, then quantify over- and under-performance through Points/Goals Over Expected and Shot Difficulty Index (SDI). The current draft now includes evidence from both leagues: two NBA figures from the existing pipeline and two NHL figures generated from teammate data, each paired with concise interpretation. Deliverables are a reproducible R Markdown workflow, balanced cross-league analysis, and a submission-ready 2-3 page proposal PDF.
 
-# Introduction
+Expected-value modeling separates shot quality from outcomes. We analyze NBA optical-tracking data from 2014-15 through 2025-26 and NHL MoneyPuck data from 2007-2024 to enable fair cross-league comparisons across roles, volume, and shot environments.
 
 Expected-value modeling lets us separate shot quality from shot outcomes. For the NBA, we analyze optical-tracking shot data from 2014-15 through 2025-26; for the NHL, we analyze MoneyPuck shot data from 2007-2024. This framing supports fair player comparison across roles, volume, and shot environments.
 
@@ -68,15 +66,15 @@ names(player_sum) <- c("Player", "Shots", "FG%", "Total POE", "POE/100")
 kable(player_sum)
 ```
 
-# Methods
+We model NBA xFG with logistic regression and NHL xG with LASSO using shot-context features (distance, angle, context, and game-state proxies). NHL shot-level xGoal probabilities are used directly in residual comparisons with observed goals. We then compute residual-based metrics to assess performance relative to expectation at the player level and apply GAM diagnostics to validate non-linear spatial effects. To aid interpretation, both pipelines frame efficiency through SDI-like metrics, evaluating difficulty-adjusted performance rather than raw conversion rates.
 
 We model NBA xFG with logistic regression and NHL xG with LASSO using shot context features (distance, angle, shot context, and game-state proxies). NHL shot-level `xGoal` probabilities are used directly in residual comparisons against observed goals. We then compute residual-style metrics to measure actual scoring above or below expectation at player level, and apply GAM diagnostics to validate non-linear spatial effects. For interpretability, both pipelines use SDI-style framing so efficiency can be evaluated against shot difficulty rather than raw conversion rate alone.
 
-For the NHL visual analysis in this proposal, we read local shot-level data through a centralized resolver (`NHL_CSV_PATH` environment variable first, fallback paths second) and fail fast with a clear error if data is unavailable. This keeps the document portable for teammates while avoiding hardcoded machine paths or in-document downloads.
+For the NHL visuals, data are loaded via NHL_CSV_PATH with fallback paths. The code fails fast if data are unavailable, preserving portability and avoiding hard-coded machine paths.
 
-# Expected Outcomes
+**Expected Outcomes**
 
-## NBA Visual Evidence
+**NBA Visual Evidence**
 
 ```{r nba-sdi-xfg, out.width='48%', fig.cap="Figure 1: NBA Shot Difficulty Index vs Expected FG% (2025-26)"}
 img_path <- file.path(NBA_FIGURES_DIR, "sdi_vs_xfg_scatter.png")
@@ -99,9 +97,9 @@ if (file.exists(img_path)) {
 Figure 1 shows the expected inverse relationship between SDI and xFG%, confirming that shot context drives modeled efficiency in the NBA sample.
 Figure 2 highlights value dispersion at similar salary levels, motivating POE per salary context rather than salary-only evaluation. Positive outliers indicate players returning more scoring value than their contract tier suggests.
 
-## NHL Visual Evidence
+**NHL Visual Evidence**
 
-```{r nhl-prep, include=FALSE, cache=TRUE, cache.path=file.path("..", "..", ".knitr-cache", "proposal-nhl-prep/"), cache.extra=file.info(NHL_CSV_PATH)$mtime}
+```{r nhl-prep, include=FALSE, cache=TRUE, cache.path=file.path("..", "..", ".knitr-cache", "proposal-nhl/"), cache.extra=file.info(NHL_CSV_PATH)$mtime}
 nhl <- read_csv(
   NHL_CSV_PATH,
   show_col_types = FALSE,
@@ -133,7 +131,7 @@ player_volume <- player_volume[player_volume$total_shots >= 50, ]
 player_volume$goal_pct <- player_volume$goal_pct * 100
 ```
 
-```{r nhl-sdi-goalpct, out.width='48%', fig.cap="Figure 3: NHL Shot Difficulty Index vs Goal Percentage (players with >=100 shots)"}
+```{r nhl-sdi-goalpct, out.width='48%', fig.cap="Figure 3: NHL Shot Difficulty Index vs Goal Percentage (players with >=100 shots)", cache=TRUE, dependson="nhl-prep", cache.path=file.path("..", "..", ".knitr-cache", "proposal-nhl/")}
 ggplot(player_sdi, aes(x = sdi_mean, y = goal_mean * 100)) +
   geom_point(aes(size = shots, color = residual), alpha = 0.45) +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "steelblue4") +
@@ -142,7 +140,7 @@ ggplot(player_sdi, aes(x = sdi_mean, y = goal_mean * 100)) +
   theme_minimal()
 ```
 
-```{r nhl-volume-goalpct, out.width='48%', fig.cap="Figure 4: NHL Shot Volume vs Goal Percentage (players with >=50 shots)"}
+```{r nhl-volume-goalpct, out.width='48%', fig.cap="Figure 4: NHL Shot Volume vs Goal Percentage (players with >=50 shots)", cache=TRUE, dependson="nhl-prep", cache.path=file.path("..", "..", ".knitr-cache", "proposal-nhl/")}
 ggplot(player_volume, aes(x = total_shots, y = goal_pct)) +
   geom_point(alpha = 0.45, color = "steelblue3") +
   geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "darkred") +
@@ -153,11 +151,11 @@ ggplot(player_volume, aes(x = total_shots, y = goal_pct)) +
 Figure 3 mirrors the NBA pattern: players taking harder shots trend toward lower conversion rates.
 Figure 4 shows that higher NHL shot volume does not guarantee higher finishing efficiency. The weak linear trend supports evaluating players on shot quality and residual performance, not volume alone.
 
-## Cross-League Visual Summary
+Figure 1 (NBA SDI vs xFG) and Figure 3 (NHL SDI vs goal percentage) show that higher shot difficulty lowers scoring probability. Figures 2 and 4 illustrate why outcomes require context: volume and salary alone do not explain efficiency outliers. Together, they justify a shared expected-points framework across leagues.
 
 NBA Figure 1 and NHL Figure 3 both show the same directional pattern: higher shot difficulty is associated with lower average scoring probability. NBA Figure 2 and NHL Figure 4 then show why outcome interpretation must include value context and residuals, since volume and salary alone do not explain efficiency outliers. Together, these visuals justify a shared expected-points framework across both leagues.
 
-# Group Considerations
+**Group Considerations**
 
 Our three-person team split work across data access, modeling, and communication deliverables so each league could be developed in parallel and then integrated in one document.
 
@@ -167,5 +165,3 @@ Our three-person team split work across data access, modeling, and communication
 | Feature Engineering + SDI | 0% | 50% | 50% |
 | Modeling (xFG/xG, diagnostics) | 30% | 40% | 30% |
 | Figures + Proposal Writing | 33% | 33% | 33% |
-
-The immediate finalization step is validation of render quality, section completeness, and branch hygiene for merge into `main`.
