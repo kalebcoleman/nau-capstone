@@ -7,38 +7,46 @@ output: html_document
 
 ```{r}
 # packages
-library(readxl)
 library(readr)
 library(glmnet)
 library(stats)
-```
-```{r}
-getwd()
-```
+library(mgcv)
 
-```{r}
-setwd("C:/Users/drian/OneDrive")
-```
-```{r}
-
-# dataset
-options(timeout = 600)
-
-# Download from MoneyPuck
-download.file(
-  "https://peter-tanner.com/moneypuck/downloads/shots_2007-2024.zip",
-  "moneypuck_data/shots_2007-2024.zip",
-  mode = "wb"
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE,
+  autodep = TRUE,
+  fig.width = 6.4,
+  fig.height = 3.6,
+  fig.align = "center",
+  out.width = "90%"
 )
-unzip("moneypuck_data/shots_2007-2024.zip", list = TRUE)
-
-# extract
-unzip("moneypuck_data/shots_2007-2024.zip", exdir = "moneypuck_data")
-
 ```
 
 ```{r}
-nhl.data <- read_csv("moneypuck_data/shots_2007-2024.csv", show_col_types = FALSE)
+# resolve local NHL CSV path (env var first)
+csv_candidates <- c(
+  Sys.getenv("NHL_CSV_PATH", unset = ""),
+  "analysis/nhl/data/shots_2007-2024.csv",
+  "../analysis/nhl/data/shots_2007-2024.csv",
+  "../../analysis/nhl/data/shots_2007-2024.csv",
+  "data/shots_2007-2024.csv"
+)
+csv_candidates <- csv_candidates[nzchar(csv_candidates)]
+nhl_csv_path <- csv_candidates[file.exists(csv_candidates)][1]
+
+if (is.na(nhl_csv_path)) {
+  stop(
+    "NHL CSV not found. Set NHL_CSV_PATH or place shots_2007-2024.csv at analysis/nhl/data/shots_2007-2024.csv or ../analysis/nhl/data/shots_2007-2024.csv",
+    call. = FALSE
+  )
+}
+```
+
+```{r, cache=TRUE, cache.path=file.path("..", "..", ".knitr-cache", "nhl-capstonemodels-load/"), cache.extra=file.info(nhl_csv_path)$mtime}
+nhl.data <- read_csv(nhl_csv_path, show_col_types = FALSE)
 nhl.data <- nhl.data[complete.cases(nhl.data), ]
 ```
 
@@ -367,7 +375,7 @@ plot_data <- rbind(most_shots, least_shots)
 library(ggplot2)
 
 ggplot(plot_data, aes(x = reorder(shooterName, total_shots), y = goal_percentage, fill = category)) +
-  geom_col() ]+
+  geom_col() +
   geom_text(aes(label = paste0(total_shots, " shots")), 
             hjust = -0.1, size = 3)+
   coord_flip()+

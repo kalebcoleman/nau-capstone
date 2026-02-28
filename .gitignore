@@ -8,3 +8,8 @@ __pycache__/
 *.log
 .sisyphus/
 
+# R Markdown cache/output artifacts
+.knitr-cache/
+*_cache/
+analysis/nhl/capstonemodels_files/
+docs/proposal/capstoneNHLProposalModels.html

@@ -8,30 +8,164 @@ output:
     number_sections: true
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE,
+  autodep = TRUE,
+  fig.width = 6.6,
+  fig.height = 2.2,
+  out.width = "0.88\\textwidth",
+  fig.align = "center",
+  dpi = 300
+)
+
+library(readr)
+library(ggplot2)
+library(knitr)
+
+NBA_DATA_DIR <- file.path("..", "..", "analysis", "nba", "data")
+NBA_FIGURES_DIR <- file.path("..", "..", "analysis", "nba", "figures")
+
+resolve_nhl_csv <- function() {
+  candidates <- c(
+    Sys.getenv("NHL_CSV_PATH", unset = ""),
+    file.path("analysis", "nhl", "data", "shots_2007-2024.csv"),
+    file.path("..", "analysis", "nhl", "data", "shots_2007-2024.csv"),
+    file.path("..", "..", "analysis", "nhl", "data", "shots_2007-2024.csv"),
+    file.path("data", "shots_2007-2024.csv")
+  )
+  candidates <- candidates[nzchar(candidates)]
+  found <- candidates[file.exists(candidates)]
+  if (length(found) == 0) {
+    stop(
+      "NHL CSV not found. Set NHL_CSV_PATH or place shots_2007-2024.csv in analysis/nhl/data.",
+      call. = FALSE
+    )
+  }
+  found[[1]]
+}
+
+NHL_CSV_PATH <- resolve_nhl_csv()
+```
+
 # Abstract
 
-The ultimate goal is an end-to-end examination of multiple sports, offensive strategy, and player performance. We detail a comprehensive shot dataset compiled via a custom data pipeline spanning the 2014-15 through 2025-26 seasons. Using this data, we develop an expected field goal (xFG) model via logistic regression, achieving 63% accuracy and an AUC-ROC of 0.653. Building on this foundation, we have three deliverables: (1) Residual Analysis to identify players who over/underperform expectations, (2) a Shot Difficulty Index (SDI) quantifying shot complexity, and (3) role-aware GMM clustering to identify player shot archetypes. We then integrate salary data to contextualize performance via POE per \$1M and a complementary FG% residual vs salary view that isolates shot-making independent of free throws. Results highlight Luke Kennard as a top overperformer (+12.3% residual) and surface distinct shot-profile archetypes (e.g., Paint-Dominant and Perimeter-Focused profiles).
+This proposal evaluates shooting efficiency in the NBA and NHL with expected probability models and residual-based performance metrics. We use NBA xFG (logistic regression) and NHL xG (LASSO + GAM diagnostics) to estimate scoring probability at the shot level, then quantify over- and under-performance through Points/Goals Over Expected and Shot Difficulty Index (SDI). The current draft now includes evidence from both leagues: two NBA figures from the existing pipeline and two NHL figures generated from teammate data, each paired with concise interpretation. Deliverables are a reproducible R Markdown workflow, balanced cross-league analysis, and a submission-ready 2-3 page proposal PDF.
 
-We also detail a comprehensive shot dataset for NHL data from 2007-2024. We develop an expected goal model using LASSO regression to identify key predictors of goal scoring. The top predictors identified are shotPlayContinuedInZone, shotGeneratedRebound, and shotGoalieFroze. Building on this, there are deliverables parallel to the NBA analysis for evaluating metrics across sports: Residual Analysis to identify individual shooters who either excel or fall short of goal expectations, an SDI quantifying the likelihood and complexity of a shot based on distance, angle, and live time situations, and clustering of shot types to identify player shot archetypes.
+# Introduction
 
-# Models
+Expected-value modeling lets us separate shot quality from shot outcomes. For the NBA, we analyze optical-tracking shot data from 2014-15 through 2025-26; for the NHL, we analyze MoneyPuck shot data from 2007-2024. This framing supports fair player comparison across roles, volume, and shot environments.
 
-- Heatmaps for NBA and NHL shot locations
-- Shot charts for both leagues
-- Expected field goal (xFG) model (NBA): logistic regression
-- Expected goal (xG) model (NHL): LASSO regression
-- GMM clustering for player shot archetypes
+**Table 1: Sample NBA Player Summary (2025-26)**
 
-# Data
+```{r table-player-summary}
+player_sum <- read_csv(file.path(NBA_DATA_DIR, "player_summary.csv"), n_max = 6, show_col_types = FALSE)
+player_sum <- player_sum[, c("PLAYER_NAME", "total_attempts", "fg_pct", "total_poe", "poe_per_100")]
+names(player_sum) <- c("Player", "Shots", "FG%", "Total POE", "POE/100")
+kable(player_sum)
+```
 
-## NBA
+# Methods
 
-The NBA dataset comes from the official NBA Stats API and the ESPN API, representing the industry standard for basketball analytics. The NBA Stats API is uniquely reliable because its "Shots" data is derived from a league-wide, multi-camera optical tracking system that captures player and ball movement at 25 frames per second, ensuring precise x,y coordinate accuracy for every attempt. This data undergoes a rigorous human-in-the-loop verification process by on-site professional statisticians and centralized league monitors to ensure event data perfectly aligns with physical tracking. Because these endpoints provide the same structural consistency used by NBA front offices for roster management and by academic researchers for advanced shot-quality modeling, they offer the most credible and longitudinal foundation for large-scale data analysis across multiple seasons.
+We model NBA xFG with logistic regression and NHL xG with LASSO using shot context features (distance, angle, shot context, and game-state proxies). NHL shot-level `xGoal` probabilities are used directly in residual comparisons against observed goals. We then compute residual-style metrics to measure actual scoring above or below expectation at player level, and apply GAM diagnostics to validate non-linear spatial effects. For interpretability, both pipelines use SDI-style framing so efficiency can be evaluated against shot difficulty rather than raw conversion rate alone.
 
-## NHL
+For the NHL visual analysis in this proposal, we read local shot-level data through a centralized resolver (`NHL_CSV_PATH` environment variable first, fallback paths second) and fail fast with a clear error if data is unavailable. This keeps the document portable for teammates while avoiding hardcoded machine paths or in-document downloads.
 
-The NHL dataset came from a website called MoneyPuck. This website is very transparent about where the data is from and the methodologies. There is also expert validation when it comes to reviewing the sets, and using them to make models to predict future games with fairly high accuracy across different metrics. The contents on this website include raw data, such as what we are using from it, as well as the analytics and predictions using this data. The website includes an incredibly detailed explanation of every unique variable and concept such as "Flurry Adjusted xG," with examples. The website also openly acknowledges limitations in the data such as coordinate inaccuracies, which they have gone back through and adjusted to ensure the data is as accurate as possible. All of these factors together form an extremely high credibility for the NHL Goals MoneyPuck dataset.
+# Expected Outcomes
 
-# Potential Problems
+## NBA Visual Evidence
 
-The main foreseeable problem with this project is being able to compare metrics between NHL and NBA due to the difference in salary caps and the overall number of points typically scored in a game. On top of that, both datasets are very large with a lot of data that is probably not useful to our exact goal with this project. Coming up with metrics that are comparable and that allow for cross-sport analysis seems to be a primary problem, though POE (Points Over Expected) will allow us to do so more easily.
+```{r nba-sdi-xfg, out.width='48%', fig.cap="Figure 1: NBA Shot Difficulty Index vs Expected FG% (2025-26)"}
+img_path <- file.path(NBA_FIGURES_DIR, "sdi_vs_xfg_scatter.png")
+if (file.exists(img_path)) {
+  knitr::include_graphics(img_path)
+} else {
+  stop("Missing figure: ", img_path)
+}
+```
+
+```{r nba-poe-salary, out.width='48%', fig.cap="Figure 2: NBA Points Over Expected vs Salary (2025-26)"}
+img_path <- file.path(NBA_FIGURES_DIR, "poe_vs_salary_scatter.png")
+if (file.exists(img_path)) {
+  knitr::include_graphics(img_path)
+} else {
+  stop("Missing figure: ", img_path)
+}
+```
+
+Figure 1 shows the expected inverse relationship between SDI and xFG%, confirming that shot context drives modeled efficiency in the NBA sample.
+Figure 2 highlights value dispersion at similar salary levels, motivating POE per salary context rather than salary-only evaluation. Positive outliers indicate players returning more scoring value than their contract tier suggests.
+
+## NHL Visual Evidence
+
+```{r nhl-prep, include=FALSE, cache=TRUE, cache.path=file.path("..", "..", ".knitr-cache", "proposal-nhl-prep/"), cache.extra=file.info(NHL_CSV_PATH)$mtime}
+nhl <- read_csv(
+  NHL_CSV_PATH,
+  show_col_types = FALSE,
+  col_select = c(shooterName, goal, xGoal, shotDistance, shotAngle, shotRebound, shotGoalieFroze)
+)
+nhl <- nhl[complete.cases(nhl), ]
+
+max_dist <- max(nhl$shotDistance, na.rm = TRUE)
+max_angle <- max(abs(nhl$shotAngle), na.rm = TRUE)
+nhl$SDI <- (nhl$shotDistance / max_dist) * 40 +
+  (abs(nhl$shotAngle) / max_angle) * 30 +
+  ifelse(nhl$shotRebound == 1, 20, 0) +
+  ifelse(nhl$shotGoalieFroze == 1, 10, 0)
+
+player_sdi <- aggregate(cbind(goal, SDI, xGoal) ~ shooterName, data = nhl,
+  FUN = function(x) c(mean = mean(x), n = length(x))
+)
+player_sdi <- do.call(data.frame, player_sdi)
+colnames(player_sdi) <- c("shooterName", "goal_mean", "shots", "sdi_mean", "sdi_n", "xGoal_mean", "xGoal_n")
+player_sdi <- player_sdi[player_sdi$shots >= 100, ]
+player_sdi$residual <- player_sdi$goal_mean - player_sdi$xGoal_mean
+
+player_volume <- aggregate(goal ~ shooterName, data = nhl,
+  FUN = function(x) c(mean = mean(x), n = length(x))
+)
+player_volume <- do.call(data.frame, player_volume)
+colnames(player_volume) <- c("shooterName", "goal_pct", "total_shots")
+player_volume <- player_volume[player_volume$total_shots >= 50, ]
+player_volume$goal_pct <- player_volume$goal_pct * 100
+```
+
+```{r nhl-sdi-goalpct, out.width='48%', fig.cap="Figure 3: NHL Shot Difficulty Index vs Goal Percentage (players with >=100 shots)"}
+ggplot(player_sdi, aes(x = sdi_mean, y = goal_mean * 100)) +
+  geom_point(aes(size = shots, color = residual), alpha = 0.45) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "steelblue4") +
+  scale_color_gradient2(low = "darkred", mid = "gray80", high = "darkgreen", midpoint = 0) +
+  labs(x = "Shot Difficulty Index (SDI)", y = "Goal Percentage", color = "Residual", size = "Shots") +
+  theme_minimal()
+```
+
+```{r nhl-volume-goalpct, out.width='48%', fig.cap="Figure 4: NHL Shot Volume vs Goal Percentage (players with >=50 shots)"}
+ggplot(player_volume, aes(x = total_shots, y = goal_pct)) +
+  geom_point(alpha = 0.45, color = "steelblue3") +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", color = "darkred") +
+  labs(x = "Total Shots", y = "Goal Percentage") +
+  theme_minimal()
+```
+
+Figure 3 mirrors the NBA pattern: players taking harder shots trend toward lower conversion rates.
+Figure 4 shows that higher NHL shot volume does not guarantee higher finishing efficiency. The weak linear trend supports evaluating players on shot quality and residual performance, not volume alone.
+
+## Cross-League Visual Summary
+
+NBA Figure 1 and NHL Figure 3 both show the same directional pattern: higher shot difficulty is associated with lower average scoring probability. NBA Figure 2 and NHL Figure 4 then show why outcome interpretation must include value context and residuals, since volume and salary alone do not explain efficiency outliers. Together, these visuals justify a shared expected-points framework across both leagues.
+
+# Group Considerations
+
+Our three-person team split work across data access, modeling, and communication deliverables so each league could be developed in parallel and then integrated in one document.
+
+| Task | Kanaan | Kaleb | Drianna |
+|------|--------|-------|---------|
+| Data Collection (NBA/NHL) | 0% | 50% | 50% |
+| Feature Engineering + SDI | 0% | 50% | 50% |
+| Modeling (xFG/xG, diagnostics) | 30% | 40% | 30% |
+| Figures + Proposal Writing | 33% | 33% | 33% |
+
+The immediate finalization step is validation of render quality, section completeness, and branch hygiene for merge into `main`.
