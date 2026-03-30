@@ -2,7 +2,7 @@
 
 A cross-sport NBA/NHL analysis repo focused on shot quality, scoring expectation, and difficulty-adjusted player performance.
 
-![Shot Difficulty Index vs Expected FG%](analysis/nba/figures/sdi_vs_xfg_scatter.png)
+![NBA SDI vs Actual FG% (2014-2024)](analysis/nba/figures/nba_sdi_vs_actual_2014_2024.png)
 
 ## Overview
 
