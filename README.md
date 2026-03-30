@@ -1,12 +1,16 @@
-# NAU Capstone: Sports Expected Points Analysis
+# NAU Capstone: Sports Shot Quality Analysis
 
-A comprehensive analysis of expected points/goals across NHL and NBA, examining offensive strategy and player performance through quantitative shot quality models.
+A cross-sport NBA/NHL analysis repo focused on shot quality, scoring expectation, and difficulty-adjusted player performance.
 
 ![Shot Difficulty Index vs Expected FG%](analysis/nba/figures/sdi_vs_xfg_scatter.png)
 
 ## Overview
 
-This project analyzes hockey and basketball shot data to identify player performance beyond traditional metrics. Using expected points/goal models, we quantify how players perform relative to expectation.
+This project analyzes hockey and basketball shot data to identify player performance beyond traditional box-score metrics. The current repo contains:
+
+- an NBA shot-quality pipeline with xFG-style expected make estimates, SDI diagnostics, and Streamlit exploration tools
+- an NHL app-data prep flow plus NHL research/dashboard pages built from MoneyPuck shot data and shot-level `xGoal`
+- a matched `2014-2024` NBA/NHL comparison pipeline that exports summaries, GAM-style distance effect figures, and proposal assets
 
 ### Key Metrics
 
@@ -42,7 +46,11 @@ nau-capstone/
 │   │   ├── utils/
 │   │   └── requirements.txt
 │   └── nhl/
-│       └── README.md
+│       ├── prepare_app_data.py
+│       ├── capstonemodels.Rmd
+│       ├── data/
+│       ├── README.md
+│       └── requirements.txt
 └── requirements.txt
 ```
 
@@ -78,7 +86,13 @@ streamlit run app/streamlit_app.py
 ```bash
 cd analysis/nhl
 pip install -r requirements.txt
-# See NHL README for details
+python prepare_app_data.py
+```
+
+### Cross-Sport Comparison Outputs
+
+```bash
+python analysis/nba/cross_sport_comparison.py
 ```
 
 ## Data Sources
@@ -90,8 +104,8 @@ pip install -r requirements.txt
 ## Models
 
 - **xFG Model (NBA)**: Logistic regression for expected field goal probability
-- **xG Model (NHL)**: LASSO regression for expected goals
-- **GAM**: Generalized Additive Models for spatial analysis
+- **NHL Expected Goals**: Shot-level `xGoal` values from the MoneyPuck dataset, used directly in residual and SDI analysis
+- **Distance Effect Model**: Spline-logistic distance curves with bootstrap confidence intervals for cross-sport comparison figures
 - **GMM Clustering**: Gaussian Mixture Models for player archetypes
 
 ## Requirements

@@ -78,7 +78,11 @@ def apply_theme() -> None:
         .stMetric div {{
             overflow: visible !important;
             text-overflow: unset !important;
-            white-space: normal !important;
+            white-space: nowrap !important;
+        }}
+        .stMetric [data-testid="stMetricValue"] {{
+            font-size: clamp(1.2rem, 2.5vw, 2.2rem) !important;
+            white-space: nowrap !important;
         }}
         .stMetric label {{
             color: {MUTED_TEXT};
@@ -704,11 +708,11 @@ def plot_scatter_plotly(
         selector=dict(mode="markers"),
     )
     add_court_traces(fig, full_court=court_view == "Full court", line_color=COURT_LINE)
-    fig.update_xaxes(range=[-250, 250], showgrid=False, zeroline=False, showticklabels=False)
+    fig.update_xaxes(range=[-250, 250], showgrid=False, zeroline=False, showticklabels=False, title_text="")
     y_range = [-52, 888] if court_view == "Full court" else [-52, 418]
     fig.update_yaxes(
         range=y_range, showgrid=False, zeroline=False,
-        showticklabels=False, scaleanchor="x", scaleratio=1,
+        showticklabels=False, scaleanchor="x", scaleratio=1, title_text="",
     )
     fig.update_layout(
         autosize=False,

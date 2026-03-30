@@ -1,0 +1,146 @@
+---
+title: "Matched NBA and NHL Comparison Story"
+author: "Kanaan Law, Kaleb Coleman, Drianna Walker"
+date: "Spring 2026"
+output:
+  pdf_document:
+    toc: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 6.8,
+  fig.height = 4.0,
+  out.width = "0.92\\textwidth",
+  fig.align = "center",
+  dpi = 300
+)
+
+library(readr)
+library(knitr)
+
+BASE_DIR <- file.path("..", "..", "analysis", "nba")
+DATA_DIR <- file.path(BASE_DIR, "data")
+FIGURES_DIR <- file.path(BASE_DIR, "figures")
+NHL_RAW_PATH <- file.path("..", "..", "analysis", "nhl", "data", "shots_2007-2024.csv")
+
+nba_summary_path <- file.path(DATA_DIR, "nba_player_summary_2014_2024.csv")
+nhl_summary_path <- file.path(DATA_DIR, "nhl_player_summary_2014_2024.csv")
+nba_gam_path <- file.path(DATA_DIR, "nba_gam_distance_2014_2024.csv")
+nhl_gam_path <- file.path(DATA_DIR, "nhl_gam_distance_2014_2024.csv")
+
+required_paths <- c(
+  nba_summary_path,
+  nhl_summary_path,
+  nba_gam_path,
+  nhl_gam_path,
+  NHL_RAW_PATH,
+  file.path(FIGURES_DIR, "nba_sdi_vs_actual_2014_2024.png"),
+  file.path(FIGURES_DIR, "nhl_sdi_vs_actual_2014_2024.png"),
+  file.path(FIGURES_DIR, "nba_gam_distance_2014_2024.png"),
+  file.path(FIGURES_DIR, "nhl_gam_distance_2014_2024.png"),
+  file.path(FIGURES_DIR, "nba_sdi_by_position_2014_2024.png"),
+  file.path(FIGURES_DIR, "nhl_sdi_by_position_2014_2024.png")
+)
+
+missing_paths <- required_paths[!file.exists(required_paths)]
+if (length(missing_paths) > 0) {
+  stop(
+    "Missing comparison outputs. Run `python3 analysis/nba/cross_sport_comparison.py` first.\n",
+    paste(missing_paths, collapse = "\n"),
+    call. = FALSE
+  )
+}
+
+nba_summary <- read_csv(nba_summary_path, show_col_types = FALSE)
+nhl_summary <- read_csv(nhl_summary_path, show_col_types = FALSE)
+
+nhl_position_counts <- read_csv(
+  NHL_RAW_PATH,
+  col_select = c(season, playerPositionThatDidEvent),
+  show_col_types = FALSE
+)
+nhl_position_counts <- nhl_position_counts[
+  !is.na(nhl_position_counts$season) &
+    nhl_position_counts$season >= 2014 &
+    nhl_position_counts$season <= 2024,
+]
+nhl_goalie_events <- sum(
+  nhl_position_counts$playerPositionThatDidEvent == "G",
+  na.rm = TRUE
+)
+```
+
+**Why This Window**
+
+We moved the cross-sport comparison to a matched `2014-2024` window because the NHL data in this project stop at 2024. Using a common historical frame keeps the visual argument defensible. The goal is not to force the two sports into the same model, but to make the comparison use the same time span, the same figure grammar, and the same interpretation rules.
+
+**How We Built The Comparison**
+
+The pipeline exports NBA regular-season shots from the local `spatialSportsR` SQLite source into this repository and filters them to seasons beginning in `2014` through `2023`, which corresponds to the fully observed `2014-15` through `2023-24` NBA seasons. NHL shots are filtered locally from the MoneyPuck file to seasons `2014` through `2024`.
+
+For both sports, the comparison layer computes:
+
+- player-level shot volume
+- average Shot Difficulty Index (SDI)
+- actual scoring rate
+- expected scoring rate
+- residual scoring efficiency, defined as actual minus expected
+
+The SDI formulas stay sport-specific because shot context is sport-specific. The interpretation stays shared: higher SDI means a player takes harder shots on average.
+
+**Table 1: Comparison Sample Sizes**
+
+```{r sample-table}
+sample_table <- data.frame(
+  Sport = c("NBA", "NHL"),
+  Players = c(nrow(nba_summary), nrow(nhl_summary)),
+  Attempts = c(sum(nba_summary$attempts), sum(nhl_summary$attempts)),
+  Mean_SDI = c(mean(nba_summary$mean_sdi), mean(nhl_summary$mean_sdi)),
+  Mean_Residual = c(mean(nba_summary$residual), mean(nhl_summary$residual))
+)
+kable(sample_table, digits = 3)
+```
+
+**Matched SDI Figures**
+
+```{r sdi-comparison, fig.show='hold', out.width='49%', fig.cap="Figure 1: Side-by-side SDI comparison for NBA and NHL over the matched 2014-2024 window"}
+knitr::include_graphics(c(
+  file.path(FIGURES_DIR, "nba_sdi_vs_actual_2014_2024.png"),
+  file.path(FIGURES_DIR, "nhl_sdi_vs_actual_2014_2024.png")
+))
+```
+
+The two SDI plots use the same visual grammar. Point size represents shot volume and color represents residual efficiency. Labels are intentionally selective: they highlight the most interesting overperformers, underperformers, highest-difficulty shooters, and highest-volume scorers rather than trying to annotate every outlier. In both sports, players with harder shot diets tend to convert at lower rates, but the residual color scale shows that some shooters still outperform expectation within difficult contexts.
+
+**Matched GAM Distance Story**
+
+```{r gam-comparison, fig.show='hold', out.width='49%', fig.cap="Figure 2: Side-by-side GAM distance effects with 95% confidence intervals for NBA and NHL over the matched 2014-2024 window"}
+knitr::include_graphics(c(
+  file.path(FIGURES_DIR, "nba_gam_distance_2014_2024.png"),
+  file.path(FIGURES_DIR, "nhl_gam_distance_2014_2024.png")
+))
+```
+
+Distance is the cleanest shared difficulty driver across the two sports, so the matched GAM figures focus there first. The blue curve estimates the marginal contribution of distance to scoring odds after controlling for the other modeled context variables, and the shaded region gives the 95% confidence interval. The NHL display is clipped at 100 feet so the figure stays focused on the part of the rink where the estimated distance effect is most informative. In both sports, the dominant pattern is negative: scoring becomes less likely as shot distance increases.
+
+**What The Matched Visuals Show**
+
+The main result is methodological and substantive at the same time. Methodologically, the report now uses one coherent comparison layer instead of mixing a single-season NBA pipeline with a separate NHL draft workflow. Substantively, the matched figures support the same sports-analytics story in both settings: raw efficiency alone is incomplete, shot difficulty changes the baseline, and distance remains the most stable common driver of scoring probability.
+
+That is why SDI and the GAM confidence-interval plots belong together. SDI tells us which players live in harder shot environments. The GAM figures explain why one of the main components of that difficulty, distance, pushes expected scoring downward in both leagues.
+
+**Position Clusters**
+
+```{r position-comparison, fig.show='hold', out.width='49%', fig.cap="Figure 3: Side-by-side position-cluster SDI comparison for NBA and NHL over the matched 2014-2024 window"}
+knitr::include_graphics(c(
+  file.path(FIGURES_DIR, "nba_sdi_by_position_2014_2024.png"),
+  file.path(FIGURES_DIR, "nhl_sdi_by_position_2014_2024.png")
+))
+```
+
+The position-cluster view answers a different question than the residual-colored SDI scatter. Instead of asking who over- or under-performs expectation, it asks whether players separate into distinct shot-difficulty neighborhoods by role. In the NBA, we use the dominant historical `G/F/C` label from the local player box tables. In the NHL, we use the dominant historical skater role after collapsing left and right wings into a shared `W` group. Goalie-tagged shot events are negligible in the matched NHL raw file, with exactly `r format(nhl_goalie_events, big.mark = ",")` `G` rows from `2014` through `2024`, so goalies are excluded from the position-cluster figure. The labels in this section identify one exemplar player per role group, making the cluster story readable without turning the plot into a roster dump.
