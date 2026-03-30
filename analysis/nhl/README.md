@@ -1,31 +1,29 @@
 # NHL Expected Goals Analysis
 
-> Placeholder for teammate NHL analysis
-
 ## Overview
 
-This folder is reserved for NHL expected goals (xG) analysis. The NBA analysis is complete - your team should mirror this structure for the NHL portion.
+This folder contains the NHL-side data prep and capstone analysis inputs used by the dashboard and proposal materials. The current workflow relies on MoneyPuck shot data, preserves shot-level `xGoal`, and computes SDI-style difficulty features for downstream figures and app pages.
 
 ## Quick Start
 
 ```bash
 cd analysis/nhl
 pip install -r requirements.txt
+python prepare_app_data.py
 ```
 
 ## Data Sources
 
 - **MoneyPuck**: NHL shot data (2007-2024)
-- Reference the main `Proposal.Rmd` in `docs/proposal/` for methodology
+- Reference the proposal files in `docs/proposal/` for the current write-up and comparison figures
 
-## To Do
+## Outputs
 
-- [ ] Copy/replicate NBA analysis pipeline for NHL data
-- [ ] Implement xG model (LASSO regression)
-- [ ] Add shot difficulty index for hockey
-- [ ] Create residual analysis for shooters
-- [ ] Build GMM clustering for player archetypes
+- `data/app_data/nhl_shots_2024.csv.gz`: season-filtered app dataset for Streamlit NHL pages
+- `capstonemodels.Rmd`: NHL-focused draft analysis notebook/write-up
+- raw MoneyPuck CSVs stored under `data/`
 
-## Team
+## Notes
 
-- Add teammate names here
+- `prepare_app_data.py` expects `data/shots_2007-2024.csv` to exist locally
+- the main cross-sport figure generation lives in `analysis/nba/cross_sport_comparison.py`

@@ -1,0 +1,10 @@
+[ui]
+# Hide the deploy button and Streamlit branding for a cleaner look
+hideTopBar = false
+
+[theme]
+primaryColor = "#F5C84C"
+backgroundColor = "#0B0F1A"
+secondaryBackgroundColor = "#121826"
+textColor = "#E6E8EE"
+font = "sans serif"

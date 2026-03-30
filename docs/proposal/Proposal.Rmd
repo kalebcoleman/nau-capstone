@@ -51,7 +51,7 @@ NHL_CSV_PATH <- resolve_nhl_csv()
 
 **Title and Abstract**
 
-This proposal analyzes shooting efficiency in the NBA and NHL using probabilistic models and residual-based metrics. We estimate shot-level scoring probability with NBA xFG (logistic regression) and NHL xG (LASSO plus GAM diagnostics), then quantify deviations via Points/Goals Over Expected (POE) and the Shot Difficulty Index (SDI). The draft includes two NBA figures from the existing pipeline and two NHL figures derived from teammate data, each with concise interpretation. Deliverables are a reproducible R Markdown workflow, a balanced cross-league analysis, and a submission-ready 2-3 page PDF.
+This proposal analyzes shooting efficiency in the NBA and NHL using probabilistic models and residual-based metrics. We estimate shot-level scoring probability with NBA xFG (logistic regression) and NHL `xGoal` probabilities from the MoneyPuck shot dataset, then quantify deviations via Points/Goals Over Expected (POE) and the Shot Difficulty Index (SDI). The draft includes two NBA figures from the existing pipeline and two NHL figures derived from teammate data, each with concise interpretation. Deliverables are a reproducible R Markdown workflow, a balanced cross-league analysis, and a submission-ready 2-3 page PDF.
 
 **Introduction**
 
@@ -68,7 +68,7 @@ kable(player_sum)
 
 **Methods**
 
-We model NBA xFG with logistic regression and NHL xG with LASSO using shot-context features (distance, angle, context, and game-state proxies). NHL shot-level xGoal probabilities are used directly in residual comparisons with observed goals. We then compute residual-based metrics to assess performance relative to expectation at the player level and apply GAM diagnostics to validate non-linear spatial effects. To aid interpretation, both pipelines frame efficiency through SDI-like metrics, evaluating difficulty-adjusted performance rather than raw conversion rates.
+We model NBA xFG with logistic regression and use NHL shot-level `xGoal` probabilities directly in residual comparisons with observed goals. We then compute residual-based metrics to assess performance relative to expectation at the player level and apply GAM diagnostics to validate non-linear spatial effects. To aid interpretation, both pipelines frame efficiency through SDI-like metrics, evaluating difficulty-adjusted performance rather than raw conversion rates.
 
 For the NHL visuals, data are loaded via NHL_CSV_PATH with fallback paths. The code fails fast if data are unavailable, preserving portability and avoiding hard-coded machine paths.
 
