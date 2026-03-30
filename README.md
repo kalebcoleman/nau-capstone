@@ -12,6 +12,17 @@ This project analyzes hockey and basketball shot data to identify player perform
 - an NHL app-data prep flow plus NHL research/dashboard pages built from MoneyPuck shot data and shot-level `xGoal`
 - a matched `2014-2024` NBA/NHL comparison pipeline that exports summaries, GAM-style distance effect figures, and proposal assets
 
+## Main Data Files
+
+The main page now surfaces the two core cross-sport shot datasets directly in [`data/`](data/):
+
+| Dataset | File | Notes |
+|--------|------|-------|
+| **NBA shot data** | [`data/nba_shots_2014_2024.csv.gz`](data/nba_shots_2014_2024.csv.gz) | 2014-2024 shot-level archive used for the basketball modeling workflow |
+| **NHL shot data** | [`data/nhl_shots_2014_2024.csv.gz`](data/nhl_shots_2014_2024.csv.gz) | 2014-2024 shot-level archive used for the hockey modeling workflow |
+
+These files are stored as `.gz` archives because the raw shot data is large enough that we had to compress it to keep the repository GitHub-friendly. League-specific copies still live under [`analysis/nba/data/`](analysis/nba/data/) and [`analysis/nhl/data/`](analysis/nhl/data/) for local workflow convenience.
+
 ### Key Metrics
 
 | Metric | Description |
@@ -29,6 +40,10 @@ nau-capstone/
 │   └── proposal/
 │       ├── Proposal.pdf
 │       └── Proposal.Rmd
+├── data/
+│   ├── nba_shots_2014_2024.csv.gz
+│   ├── nhl_shots_2014_2024.csv.gz
+│   └── README.md
 ├── analysis/
 │   ├── nba/
 │   │   ├── expected_points_analysis.py
@@ -100,6 +115,7 @@ python analysis/nba/cross_sport_comparison.py
 - **NBA Stats API**: Official league data with optical tracking (25fps)
 - **MoneyPuck**: NHL shot data (2007-2024)
 - **Player Salaries**: basketball-reference.com
+- **Repository archives**: top-level compressed `.csv.gz` files in [`data/`](data/) for quick access to the main NBA and NHL shot datasets
 
 ## Models
 
