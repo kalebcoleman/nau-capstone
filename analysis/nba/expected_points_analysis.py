@@ -41,6 +41,13 @@ sys.path.append(str(ANALYSIS_DIR))
 
 # Import from utils
 from utils.court_utils import draw_half_court, setup_shot_chart_axes
+from feature_spec import (
+    XFG_CATEGORICAL_FEATURES,
+    XFG_FEATURES,
+    XFG_NUMERIC_FEATURES,
+    build_xfg_feature_frame_from_shots,
+    engineer_nba_features,
+)
 
 
 # Configuration - standalone (CSV-based)
@@ -105,71 +112,15 @@ def load_shot_data(seasons, season_type="regular"):
 
 def engineer_features(df):
     """Create features for shot prediction."""
-    df = df.copy()
-
-    # Convert to numeric
-    for col in [
-        "LOC_X",
-        "LOC_Y",
-        "SHOT_MADE_FLAG",
-        "SHOT_DISTANCE",
-        "PERIOD",
-        "MINUTES_REMAINING",
-        "SECONDS_REMAINING",
-    ]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
+    df = engineer_nba_features(df)
     df.dropna(subset=["LOC_X", "LOC_Y", "SHOT_MADE_FLAG", "ACTION_TYPE"], inplace=True)
-
-    # Spatial features
-    df["shot_distance_feet"] = df["SHOT_DISTANCE"].fillna(
-        np.sqrt(df["LOC_X"] ** 2 + df["LOC_Y"] ** 2) / 10
-    )
-    df["shot_angle"] = np.arctan2(df["LOC_X"], df["LOC_Y"].clip(lower=1))
-
-    # Game clock
-    df["seconds_in_period"] = df["MINUTES_REMAINING"].fillna(0) * 60 + df[
-        "SECONDS_REMAINING"
-    ].fillna(0)
-
-    # Clutch (last 2 min of 4th/OT)
-    df["is_clutch"] = ((df["PERIOD"] >= 4) & (df["seconds_in_period"] <= 120)).astype(
-        int
-    )
-
-    # Shot type indicators
-    action = df["ACTION_TYPE"].str.lower().fillna("")
-    df["is_layup"] = action.str.contains("layup|finger roll").astype(int)
-    df["is_dunk"] = action.str.contains("dunk").astype(int)
-    df["is_jump_shot"] = action.str.contains(
-        "jump shot|pullup|step back|fadeaway"
-    ).astype(int)
-    df["is_hook"] = action.str.contains("hook").astype(int)
-    df["is_floater"] = action.str.contains("float").astype(int)
-
-    # Shot value
-    df["shot_value"] = df["SHOT_TYPE"].apply(lambda x: 3 if "3PT" in str(x) else 2)
-
     return df
 
 
 def build_model():
     """Build logistic regression pipeline with preprocessing."""
-    numeric_features = [
-        "LOC_X",
-        "LOC_Y",
-        "shot_distance_feet",
-        "shot_angle",
-        "PERIOD",
-        "seconds_in_period",
-        "is_clutch",
-        "is_layup",
-        "is_dunk",
-        "is_jump_shot",
-        "is_hook",
-        "is_floater",
-    ]
-    categorical_features = ["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA"]
+    numeric_features = XFG_NUMERIC_FEATURES
+    categorical_features = XFG_CATEGORICAL_FEATURES
 
     preprocessor = ColumnTransformer(
         [
@@ -192,7 +143,7 @@ def build_model():
         ]
     )
 
-    return pipeline, numeric_features + categorical_features
+    return pipeline, XFG_FEATURES
 
 
 def generate_visualizations(df, season, output_dir):
@@ -317,27 +268,10 @@ if __name__ == "__main__":
     generate_visualizations(target_df, TARGET_SEASON, FIGURES_DIR)
 
     # Prepare features
-    feature_cols = [
-        "LOC_X",
-        "LOC_Y",
-        "shot_distance_feet",
-        "shot_angle",
-        "PERIOD",
-        "seconds_in_period",
-        "is_clutch",
-        "is_layup",
-        "is_dunk",
-        "is_jump_shot",
-        "is_hook",
-        "is_floater",
-        "SHOT_ZONE_BASIC",
-        "SHOT_ZONE_AREA",
-    ]
-
-    X_train = train_df[feature_cols].copy()
+    X_train = build_xfg_feature_frame_from_shots(train_df)
     y_train = train_df["SHOT_MADE_FLAG"].astype(int)
 
-    X_target = target_df[feature_cols].copy()
+    X_target = build_xfg_feature_frame_from_shots(target_df)
     y_target = target_df["SHOT_MADE_FLAG"].astype(int)
 
     print(

@@ -23,15 +23,18 @@ knitr::opts_chunk$set(
 library(readr)
 library(knitr)
 
-BASE_DIR <- file.path("..", "..", "analysis", "nba")
-DATA_DIR <- file.path(BASE_DIR, "data")
-FIGURES_DIR <- file.path(BASE_DIR, "figures")
+NBA_BASE_DIR <- file.path("..", "..", "analysis", "nba")
+NHL_BASE_DIR <- file.path("..", "..", "analysis", "nhl")
+NBA_DATA_DIR <- file.path(NBA_BASE_DIR, "data")
+NBA_FIGURES_DIR <- file.path(NBA_BASE_DIR, "figures")
+NHL_DATA_DIR <- file.path(NHL_BASE_DIR, "data")
+NHL_FIGURES_DIR <- file.path(NHL_BASE_DIR, "figures")
 NHL_RAW_PATH <- file.path("..", "..", "analysis", "nhl", "data", "shots_2007-2024.csv")
 
-nba_summary_path <- file.path(DATA_DIR, "nba_player_summary_2014_2024.csv")
-nhl_summary_path <- file.path(DATA_DIR, "nhl_player_summary_2014_2024.csv")
-nba_gam_path <- file.path(DATA_DIR, "nba_gam_distance_2014_2024.csv")
-nhl_gam_path <- file.path(DATA_DIR, "nhl_gam_distance_2014_2024.csv")
+nba_summary_path <- file.path(NBA_DATA_DIR, "nba_player_summary_2014_2024.csv")
+nhl_summary_path <- file.path(NHL_DATA_DIR, "nhl_player_summary_2014_2024.csv")
+nba_gam_path <- file.path(NBA_DATA_DIR, "nba_gam_distance_2014_2024.csv")
+nhl_gam_path <- file.path(NHL_DATA_DIR, "nhl_gam_distance_2014_2024.csv")
 
 required_paths <- c(
   nba_summary_path,
@@ -39,12 +42,12 @@ required_paths <- c(
   nba_gam_path,
   nhl_gam_path,
   NHL_RAW_PATH,
-  file.path(FIGURES_DIR, "nba_sdi_vs_actual_2014_2024.png"),
-  file.path(FIGURES_DIR, "nhl_sdi_vs_actual_2014_2024.png"),
-  file.path(FIGURES_DIR, "nba_gam_distance_2014_2024.png"),
-  file.path(FIGURES_DIR, "nhl_gam_distance_2014_2024.png"),
-  file.path(FIGURES_DIR, "nba_sdi_by_position_2014_2024.png"),
-  file.path(FIGURES_DIR, "nhl_sdi_by_position_2014_2024.png")
+  file.path(NBA_FIGURES_DIR, "nba_sdi_vs_actual_2014_2024.png"),
+  file.path(NHL_FIGURES_DIR, "nhl_sdi_vs_actual_2014_2024.png"),
+  file.path(NBA_FIGURES_DIR, "nba_gam_distance_2014_2024.png"),
+  file.path(NHL_FIGURES_DIR, "nhl_gam_distance_2014_2024.png"),
+  file.path(NBA_FIGURES_DIR, "nba_sdi_by_position_2014_2024.png"),
+  file.path(NHL_FIGURES_DIR, "nhl_sdi_by_position_2014_2024.png")
 )
 
 missing_paths <- required_paths[!file.exists(required_paths)]
@@ -83,6 +86,8 @@ We moved the cross-sport comparison to a matched `2014-2024` window because the 
 
 The pipeline exports NBA regular-season shots from the local `spatialSportsR` SQLite source into this repository and filters them to seasons beginning in `2014` through `2023`, which corresponds to the fully observed `2014-15` through `2023-24` NBA seasons. NHL shots are filtered locally from the MoneyPuck file to seasons `2014` through `2024`.
 
+For both sports, expected scoring is generated from repo-owned shot models fitted on shot-level data. The MoneyPuck `xGoal` column is still preserved in the NHL data archive as a reference feature, but the comparison-layer expected rate now comes from the NHL GAM workflow under `analysis/nhl`.
+
 For both sports, the comparison layer computes:
 
 - player-level shot volume
@@ -110,8 +115,8 @@ kable(sample_table, digits = 3)
 
 ```{r sdi-comparison, fig.show='hold', out.width='49%', fig.cap="Figure 1: Side-by-side SDI comparison for NBA and NHL over the matched 2014-2024 window"}
 knitr::include_graphics(c(
-  file.path(FIGURES_DIR, "nba_sdi_vs_actual_2014_2024.png"),
-  file.path(FIGURES_DIR, "nhl_sdi_vs_actual_2014_2024.png")
+  file.path(NBA_FIGURES_DIR, "nba_sdi_vs_actual_2014_2024.png"),
+  file.path(NHL_FIGURES_DIR, "nhl_sdi_vs_actual_2014_2024.png")
 ))
 ```
 
@@ -121,8 +126,8 @@ The two SDI plots use the same visual grammar. Point size represents shot volume
 
 ```{r gam-comparison, fig.show='hold', out.width='49%', fig.cap="Figure 2: Side-by-side GAM distance effects with 95% confidence intervals for NBA and NHL over the matched 2014-2024 window"}
 knitr::include_graphics(c(
-  file.path(FIGURES_DIR, "nba_gam_distance_2014_2024.png"),
-  file.path(FIGURES_DIR, "nhl_gam_distance_2014_2024.png")
+  file.path(NBA_FIGURES_DIR, "nba_gam_distance_2014_2024.png"),
+  file.path(NHL_FIGURES_DIR, "nhl_gam_distance_2014_2024.png")
 ))
 ```
 
@@ -138,8 +143,8 @@ That is why SDI and the GAM confidence-interval plots belong together. SDI tells
 
 ```{r position-comparison, fig.show='hold', out.width='49%', fig.cap="Figure 3: Side-by-side position-cluster SDI comparison for NBA and NHL over the matched 2014-2024 window"}
 knitr::include_graphics(c(
-  file.path(FIGURES_DIR, "nba_sdi_by_position_2014_2024.png"),
-  file.path(FIGURES_DIR, "nhl_sdi_by_position_2014_2024.png")
+  file.path(NBA_FIGURES_DIR, "nba_sdi_by_position_2014_2024.png"),
+  file.path(NHL_FIGURES_DIR, "nhl_sdi_by_position_2014_2024.png")
 ))
 ```
 

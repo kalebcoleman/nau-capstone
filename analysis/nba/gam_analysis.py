@@ -28,6 +28,7 @@ ANALYSIS_DIR = Path(__file__).parent
 sys.path.append(str(ANALYSIS_DIR))
 
 from utils.court_utils import draw_half_court, setup_shot_chart_axes
+from feature_spec import GAM_FEATURES, engineer_nba_features
 
 DATA_DIR = ANALYSIS_DIR / "data"
 FIGURES_DIR = ANALYSIS_DIR / "figures"
@@ -69,29 +70,8 @@ def load_shot_data_from_db(
     # Filter by season (season_type already filtered in export)
     df = df[df["season"].isin(seasons)]
 
-    # Engineer features inline
-    for col in [
-        "LOC_X",
-        "LOC_Y",
-        "SHOT_MADE_FLAG",
-        "SHOT_DISTANCE",
-        "PERIOD",
-        "MINUTES_REMAINING",
-        "SECONDS_REMAINING",
-    ]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
+    df = engineer_nba_features(df)
     df.dropna(subset=["LOC_X", "LOC_Y", "SHOT_MADE_FLAG", "ACTION_TYPE"], inplace=True)
-    df["shot_distance_feet"] = df["SHOT_DISTANCE"].fillna(
-        np.sqrt(df["LOC_X"] ** 2 + df["LOC_Y"] ** 2) / 10
-    )
-    df["shot_angle"] = np.arctan2(df["LOC_X"], df["LOC_Y"].clip(lower=1))
-    df["seconds_in_period"] = df["MINUTES_REMAINING"].fillna(0) * 60 + df[
-        "SECONDS_REMAINING"
-    ].fillna(0)
-    df["is_clutch"] = ((df["PERIOD"] >= 4) & (df["seconds_in_period"] <= 120)).astype(
-        int
-    )
 
     # Optional filters
     if cap_distance:
@@ -547,21 +527,7 @@ if __name__ == "__main__":
     target_df = add_shot_type_features(target_df)
     print(f"Loaded {len(target_df):,} target shots")
 
-    feature_cols = [
-        "LOC_X",
-        "LOC_Y",
-        "shot_distance_feet",
-        "shot_angle",
-        "seconds_in_period",
-        "PERIOD",
-        "is_dunk",
-        "is_layup",
-        "is_hook",
-        "is_floater",
-        "is_jump_shot_2",
-        "is_jump_shot_3",
-        "is_clutch",
-    ]
+    feature_cols = GAM_FEATURES
 
     # Prepare training data
     train_clean = train_df.dropna(subset=feature_cols + ["SHOT_MADE_FLAG"]).copy()

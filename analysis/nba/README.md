@@ -1,68 +1,86 @@
-# NBA Expected Points and Shot Analytics
+# NBA Analysis
 
-Standalone NBA analysis package for capstone deliverables.
+This folder contains both sides of the NBA capstone work:
 
-## Folder Structure
+- the `2025-26` NBA-only modeling and dashboard workflow
+- the NBA contribution to the final matched `2014-2024` NBA/NHL comparison
 
+## What Lives Here
+
+### Dashboard Surface
+
+- `app/streamlit_app.py`: main Streamlit home page for the poster companion app
+- `app/overview_page.py`: poster-oriented landing page
+- `app/sdi_explorer_page.py`: interactive cross-sport SDI explorer
+- `app/gam_explorer_page.py`: curated GAM figure explorer
+- `app/demo_content.py`: poster-oriented copy and figure groups used across the app
+- `app/utils.py`: plotting, filtering, and model helper functions for the dashboard
+
+### Modeling And Exports
+
+- `expected_points_analysis.py`: trains the NBA expected-field-goal workflow
+- `gam_analysis.py`: builds the NBA GAM-based difficulty outputs
+- `sdi_analysis.py`: computes NBA shot-difficulty summaries
+- `cross_sport_comparison.py`: writes the matched NBA/NHL `2014-2024` outputs used by the story and dashboard
+- `export_poster_snapshot.py`: exports the poster-ready variable snapshot table
+- `feature_spec.py`: shared feature definitions used across models, app logic, and poster exports
+
+## Main Data And Figure Outputs
+
+### Poster / Final Comparison Outputs
+
+- `data/nba_shots_2014_2024.csv.gz`
+- `data/nba_player_summary_2014_2024.csv`
+- `data/nba_position_summary_2014_2024.csv`
+- `data/nba_gam_distance_2014_2024.csv`
+- `data/poster_model_snapshot.csv`
+- `data/poster_model_snapshot.md`
+- `figures/nba_sdi_vs_actual_2014_2024.png`
+- `figures/nba_sdi_by_position_2014_2024.png`
+- `figures/nba_gam_distance_2014_2024.png`
+
+### Dashboard / NBA Demo Outputs
+
+- `data/nba_shots_2025-26.csv.gz`
+- `data/shots_with_xp_2025-26.parquet`
+- `data/player_box_usage_2025-26.csv`
+- `data/player_box_traditional_2025-26.csv`
+- `data/player_box_advanced_2025-26.csv`
+- `models/xp_model_2025-26.joblib`
+- `models/gam_model_2025-26.pkl`
+
+## Typical Commands
+
+Install dependencies:
+
+```bash
+cd analysis/nba
+pip install -r requirements.txt
 ```
-analysis/nba/
-├── expected_points_analysis.py
-├── calibration_diagnostics.py
-├── gam_analysis.py
-├── advanced_analytics.py
-├── sdi_analysis.py
-├── player_clustering.py
-├── player_performance_analysis.py
-├── shot_density.py
-├── salary_collector.py
-├── value_analysis.py
-├── app/
-│   └── streamlit_app.py
-├── data/
-│   ├── nba_shots_2025-26.csv.gz
-│   ├── nba_shots_training.csv.gz
-│   ├── player_box_usage_2025-26.csv
-│   ├── player_box_traditional_2025-26.csv
-│   ├── player_box_advanced_2025-26.csv
-│   ├── shots_with_xp_2025-26.parquet
-│   └── *.csv outputs
-├── figures/
-├── models/
-├── utils/
-└── requirements.txt
+
+Refresh core NBA outputs:
+
+```bash
+python expected_points_analysis.py
+python gam_analysis.py
+python sdi_analysis.py
 ```
 
-## Data Files
+Refresh poster-specific exports:
 
-- `nba_shots_2025-26.csv.gz`: full 2025-26 regular season shot sample (~146K shots, gzip-compressed)
-- `nba_shots_training.csv.gz`: six-season training set for model scripts (2020-21 through 2025-26)
-- `player_box_usage_2025-26.csv`: usage rates for SDI/role context
-- `player_box_traditional_2025-26.csv`: position/minutes context
-- `player_box_advanced_2025-26.csv`: assist percentage context
-- `shots_with_xp_2025-26.parquet`: precomputed shot-level xP/POE output
+```bash
+python cross_sport_comparison.py
+python export_poster_snapshot.py
+```
 
-## Run Order
+Run the dashboard:
 
-1. `pip install -r requirements.txt`
-2. `python expected_points_analysis.py`
-3. `python calibration_diagnostics.py`
-4. `python gam_analysis.py`
-5. `python advanced_analytics.py` (runs residuals, SDI, and clustering)
-6. `python player_performance_analysis.py`
-7. `python shot_density.py`
-8. `python salary_collector.py` (optional; precomputed salary CSV included)
-9. `python value_analysis.py`
-10. `streamlit run app/streamlit_app.py`
-
-## Key Metrics
-
-- `xFG`: expected field-goal probability from the logistic model
-- `POE`: points over expected at shot and player levels
-- `SDI`: shot difficulty index based on distance, angle, clock, and shot type
-- `POE/$M`: POE per $1M salary for value context
+```bash
+streamlit run app/streamlit_app.py
+```
 
 ## Notes
 
-- This package is pre-populated with outputs and figures so it works as an example repository immediately.
-- Scripts are configured for standalone CSV/parquet inputs in `data/`.
-- Streamlit app is scoped to 2025-26 sample data for capstone sharing.
+- The app still uses the `2025-26` NBA sample for interactive exploration.
+- The final poster and cross-sport write-up use the matched `2014-2024` outputs.
+- If you are preparing presentation material, start with `data/poster_model_snapshot.md`, `cross_sport_comparison.py`, and the figures under `figures/` with `2014_2024` in the name.

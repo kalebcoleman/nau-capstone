@@ -1,0 +1,19 @@
+variable_name,variable_type,observed_direction,low_bin_fg,high_bin_fg,effect_size,notes,used_in_xfg,used_in_gam,used_in_sdi,used_in_app
+SHOT_ZONE_BASIC,categorical,top_group=Restricted Area,0.019736842105263157,0.6282778780844296,0.6085410359791664,Categorical spread across group FG% values.,True,False,True,True
+SHOT_ZONE_RANGE,categorical,top_group=Less Than 8 ft.,0.018072289156626505,0.5747497473018357,0.5566774581452092,Categorical spread across group FG% values.,False,False,False,False
+home_indicator,categorical,top_group=1.0,0.45207482617812605,0.4641722362221979,0.012097410044071832,Categorical spread across group FG% values.,False,False,False,False
+is_above_break_three,categorical,top_group=0,0.3490855962517003,0.49743431669416693,0.1483487204424666,Categorical spread across group FG% values.,False,False,False,False
+is_corner_three,categorical,top_group=0,0.3807680396407557,0.46546642934259286,0.08469838970183718,Categorical spread across group FG% values.,False,False,False,False
+is_end_of_game,categorical,top_group=0,0.4222665148063781,0.4599373321396598,0.0376708173332817,Categorical spread across group FG% values.,False,False,False,False
+is_end_of_period,categorical,top_group=0,0.3822027716994894,0.46258129135102344,0.08037851965153403,Categorical spread across group FG% values.,False,False,False,False
+is_midrange,categorical,top_group=0,0.40114725758290115,0.4698268940488807,0.06867963646597958,Categorical spread across group FG% values.,False,False,False,False
+is_restricted_area,categorical,top_group=0,0.381692373110673,0.6282778780844296,0.2465855049737566,Categorical spread across group FG% values.,False,False,False,False
+shot_type_cat,categorical,top_group=3pt_jump,0.35458951832777946,0.8939729397293973,0.5393834214016178,Categorical spread across group FG% values.,False,False,True,True
+PERIOD,continuous,higher_value_lower_fg,0.4631023309292359,0.3939393939393939,-0.069162936989842,Direction based on lowest vs highest quantile FG% bins.,True,True,False,False
+abs_shot_angle,continuous,higher_value_lower_fg,0.5570666666666667,0.44107335490830635,-0.11599331175836036,"Corner 3 mean abs angle=1.471, FG%=0.381; Above-the-break mean abs angle=0.527, FG%=0.349. Higher raw angle does not map cleanly to harder shots.",False,False,False,True
+game_minutes_elapsed,continuous,higher_value_lower_fg,0.4710115953618553,0.43497457853893495,-0.03603701682292032,Direction based on lowest vs highest quantile FG% bins.,False,False,True,True
+period_elapsed_pct,continuous,higher_value_lower_fg,0.4597959994701285,0.41231718770964715,-0.047478811760481354,Direction based on lowest vs highest quantile FG% bins.,False,False,False,False
+period_seconds_elapsed,continuous,higher_value_lower_fg,0.4590666666666667,0.41397048869635844,-0.04509617797030824,Direction based on lowest vs highest quantile FG% bins.,False,False,False,False
+seconds_in_period,continuous,higher_value_higher_fg,0.4120776802341048,0.4596239686189639,0.04754628838485908,Direction based on lowest vs highest quantile FG% bins.,True,True,False,False
+shot_angle,continuous,higher_value_higher_fg,0.45246032804373915,0.46348352387357095,0.0110231958298318,"Corner 3 mean abs angle=1.471, FG%=0.381; Above-the-break mean abs angle=0.527, FG%=0.349. Higher raw angle does not map cleanly to harder shots.",True,True,False,True
+shot_distance_feet,continuous,higher_value_lower_fg,0.703109610243422,0.3077354260089686,-0.3953741842344534,Direction based on lowest vs highest quantile FG% bins.,True,True,True,True

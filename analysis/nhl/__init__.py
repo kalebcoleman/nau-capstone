@@ -1,0 +1,1 @@
+"""NHL analysis package."""

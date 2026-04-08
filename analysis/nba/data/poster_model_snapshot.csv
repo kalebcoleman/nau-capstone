@@ -1,0 +1,7 @@
+concept,nba_variables,nhl_variables,why_it_matters
+Spatial location,"LOC_X, LOC_Y (GAM)","xCord, yCord (GAM)",Lets each GAM learn where shot quality changes across the floor or rink.
+Shot distance,shot_distance_feet (GAM + SDI),shotDistance (GAM + SDI),Primary shared difficulty signal; farther attempts are harder in both sports.
+Shot angle,shot_angle (GAM),shotAngle (GAM + SDI),Captures shooting geometry beyond distance alone.
+Game timing,"seconds_in_period, PERIOD, game_minutes_elapsed",period,Separates shot quality from late-game or late-period pressure.
+Shot type,shot_type_cat; dunk/layup/hook/floater/jump indicators,shotType; wrist/snap/slap/backhand indicators,Distinguishes easy finishes from harder attempt families.
+Extra context,"SHOT_ZONE_BASIC, is_clutch","shotRebound, shotGoalieFroze, shotRush",Keeps the final index/model aware of context that changes difficulty without changing distance.

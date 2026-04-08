@@ -1,0 +1,22 @@
+variable_name,engineered_from,current_formula,used_in_xfg,used_in_gam,used_in_sdi,used_in_app,intended_sdi_direction,candidate_status,notes
+shot_distance_feet,"SHOT_DISTANCE, LOC_X, LOC_Y",SHOT_DISTANCE else sqrt(LOC_X^2 + LOC_Y^2) / 10,True,True,True,True,higher = harder,active_or_audit,Primary distance difficulty signal.
+shot_angle,"LOC_X, LOC_Y","atan2(LOC_X, clip(LOC_Y, lower=1))",True,True,False,True,audit only,active_or_audit,0 = straight on; corner shots approach +/- pi/2.
+abs_shot_angle,shot_angle,abs(shot_angle),False,False,False,True,audit only,active_or_audit,High values collide with corner-three efficiency; do not use in SDI by default.
+period_seconds_remaining,"MINUTES_REMAINING, SECONDS_REMAINING",MINUTES_REMAINING * 60 + SECONDS_REMAINING,False,False,False,False,lower = harder,candidate_only,Current pipeline aliases this as seconds_in_period.
+period_seconds_elapsed,"PERIOD, MINUTES_REMAINING, SECONDS_REMAINING",period_length_seconds - period_seconds_remaining,False,False,False,False,higher = harder,candidate_only,Preferred quarter-progression variable for SDI review.
+period_elapsed_pct,"period_seconds_elapsed, period_length_seconds",period_seconds_elapsed / period_length_seconds,False,False,False,False,higher = harder,candidate_only,Normalized period progression.
+game_seconds_elapsed,"PERIOD, period_seconds_elapsed",sum(completed periods) + period_seconds_elapsed,False,False,False,False,higher = harder,candidate_only,Captures full-game progression including overtime.
+game_minutes_elapsed,game_seconds_elapsed,game_seconds_elapsed / 60,False,False,True,True,higher = harder,active_or_audit,Default SDI game clock variable running from 0 to 48+.
+seconds_in_period,period_seconds_remaining,legacy alias of period_seconds_remaining,True,True,False,False,lower = harder,active_or_audit,Kept for xFG/GAM compatibility.
+is_clutch,"PERIOD, seconds_in_period",int(PERIOD >= 4 and seconds_in_period <= 120),True,True,False,False,not applicable,active_or_audit,Current late-game context flag.
+shot_type_cat,"ACTION_TYPE, SHOT_TYPE","exclusive action-family labels including dunk, layup, hook, floater, 2pt_jump, 3pt_jump",False,True,True,True,category-dependent,active_or_audit,Used for SDI difficulty scoring and shot-type diagnostics.
+is_corner_three,SHOT_ZONE_BASIC,"int(SHOT_ZONE_BASIC in {'Left Corner 3', 'Right Corner 3'})",False,False,False,False,category-dependent,candidate_only,Used to audit the angle sign reversal.
+is_above_break_three,SHOT_ZONE_BASIC,int(SHOT_ZONE_BASIC == 'Above the Break 3'),False,False,False,False,category-dependent,candidate_only,Reference group for angle/corner comparisons.
+is_midrange,SHOT_ZONE_BASIC,int(SHOT_ZONE_BASIC == 'Mid-Range'),False,False,False,False,category-dependent,candidate_only,Candidate SDI indicator.
+is_restricted_area,SHOT_ZONE_BASIC,int(SHOT_ZONE_BASIC == 'Restricted Area'),False,False,False,False,lower = harder,candidate_only,Easy-shot reference flag.
+distance_bucket,shot_distance_feet,cut shot_distance_feet into ordered basketball distance bins,False,False,False,False,higher bucket = harder,candidate_only,Candidate grouped diagnostic feature.
+zone_range_bucket,SHOT_ZONE_RANGE,normalized text bucket from SHOT_ZONE_RANGE,False,False,False,False,category-dependent,candidate_only,More granular than SHOT_ZONE_BASIC for discovery.
+is_end_of_period,period_seconds_remaining,int(period_seconds_remaining <= 30),False,False,False,False,higher = harder,candidate_only,Candidate late-clock pressure flag.
+is_end_of_game,"PERIOD, seconds_in_period",int(PERIOD >= 4 and seconds_in_period <= 120),False,False,False,False,higher = harder,candidate_only,Game-context pressure flag; parallels clutch.
+home_indicator,"TEAM_NAME, HTM, VTM",int(team tricode from TEAM_NAME matches HTM),False,False,False,False,audit only,candidate_only,Candidate context feature from the full archive.
+shot_clock_remaining,external shot-clock source,,False,False,False,False,lower = harder,missing_high_value,Missing from archive; future SDI transform should be max_shot_clock - shot_clock_remaining.

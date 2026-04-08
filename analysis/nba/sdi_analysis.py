@@ -4,7 +4,8 @@ import unicodedata
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
+
+from feature_spec import compute_sdi_components
 
 MIN_SHOTS = 200
 
@@ -13,50 +14,16 @@ def compute_sdi(df):
     """
     Compute Shot Difficulty Index per shot.
 
-    SDI is a weighted combination of:
-    - Distance (30%): farther = harder
-    - Shot clock pressure (20%): less time = harder
-    - Shot type difficulty (20%): pull-up > catch-and-shoot
-    - Zone difficulty (15%): mid-range harder than paint
-    - Angle difficulty (15%): extreme angles harder
+    Current NBA SDI uses only components with an audited monotone direction:
+    - Distance: farther = harder
+    - Game progression: later in game = harder
+    - Shot type difficulty
+    - Zone difficulty
+
+    Angle remains in the dataset for GAM and audit review but is excluded from the
+    default SDI until its conditioned effect is directionally coherent.
     """
-    df = df.copy()
-
-    df["sdi_distance"] = df["shot_distance_feet"].clip(0, 35) / 35.0
-    df["sdi_clock"] = 1 - (df["seconds_in_period"].clip(0, 720) / 720.0)
-
-    action = df["ACTION_TYPE"].str.lower().fillna("")
-    df["sdi_shot_type"] = 0.3
-    df.loc[
-        action.str.contains("pullup|step back|fadeaway|turnaround"), "sdi_shot_type"
-    ] = 0.8
-    df.loc[action.str.contains("driving|running"), "sdi_shot_type"] = 0.6
-    df.loc[action.str.contains("dunk"), "sdi_shot_type"] = 0.1
-    df.loc[
-        action.str.contains("layup") & ~action.str.contains("driving"), "sdi_shot_type"
-    ] = 0.2
-
-    zone_difficulty = {
-        "Restricted Area": 0.1,
-        "In The Paint (Non-RA)": 0.4,
-        "Mid-Range": 0.7,
-        "Left Corner 3": 0.5,
-        "Right Corner 3": 0.5,
-        "Above the Break 3": 0.6,
-        "Backcourt": 0.9,
-    }
-    df["sdi_zone"] = df["SHOT_ZONE_BASIC"].map(zone_difficulty).fillna(0.5)
-
-    df["sdi_angle"] = np.abs(df["shot_angle"]) / (np.pi / 2)
-
-    df["SDI"] = (
-        0.30 * df["sdi_distance"]
-        + 0.20 * df["sdi_clock"]
-        + 0.20 * df["sdi_shot_type"]
-        + 0.15 * df["sdi_zone"]
-        + 0.15 * df["sdi_angle"]
-    )
-    return df
+    return compute_sdi_components(df)
 
 
 def aggregate_player_sdi(df, min_shots=MIN_SHOTS):

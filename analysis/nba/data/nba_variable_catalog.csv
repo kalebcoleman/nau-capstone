@@ -1,0 +1,52 @@
+variable_name,variable_kind,raw_source_columns,engineered_from,current_formula,used_in_xfg,used_in_gam,used_in_sdi,used_in_app,intended_sdi_direction,notes
+GRID_TYPE,raw,GRID_TYPE,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+GAME_ID,raw,GAME_ID,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+GAME_EVENT_ID,raw,GAME_EVENT_ID,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+PLAYER_ID,raw,PLAYER_ID,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+PLAYER_NAME,raw,PLAYER_NAME,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+TEAM_ID,raw,TEAM_ID,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+TEAM_NAME,raw,TEAM_NAME,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+PERIOD,raw,PERIOD,,,True,True,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+MINUTES_REMAINING,raw,MINUTES_REMAINING,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+SECONDS_REMAINING,raw,SECONDS_REMAINING,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+EVENT_TYPE,raw,EVENT_TYPE,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+ACTION_TYPE,raw,ACTION_TYPE,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+SHOT_TYPE,raw,SHOT_TYPE,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+SHOT_ZONE_BASIC,raw,SHOT_ZONE_BASIC,,,True,False,True,True,not applicable,Raw archive column discovered from full NBA shot archive.
+SHOT_ZONE_AREA,raw,SHOT_ZONE_AREA,,,True,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+SHOT_ZONE_RANGE,raw,SHOT_ZONE_RANGE,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+SHOT_DISTANCE,raw,SHOT_DISTANCE,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+LOC_X,raw,LOC_X,,,True,True,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+LOC_Y,raw,LOC_Y,,,True,True,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+SHOT_ATTEMPTED_FLAG,raw,SHOT_ATTEMPTED_FLAG,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+SHOT_MADE_FLAG,raw,SHOT_MADE_FLAG,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+GAME_DATE,raw,GAME_DATE,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+HTM,raw,HTM,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+VTM,raw,VTM,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+season,raw,season,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+season_type,raw,season_type,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+league,raw,league,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+source,raw,source,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+event_num,raw,event_num,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+shot_id,raw,shot_id,,,False,False,False,False,not applicable,Raw archive column discovered from full NBA shot archive.
+shot_distance_feet,engineered,,"SHOT_DISTANCE, LOC_X, LOC_Y",SHOT_DISTANCE else sqrt(LOC_X^2 + LOC_Y^2) / 10,True,True,True,True,higher = harder,Primary distance difficulty signal.
+shot_angle,engineered,,"LOC_X, LOC_Y","atan2(LOC_X, clip(LOC_Y, lower=1))",True,True,False,True,audit only,0 = straight on; corner shots approach +/- pi/2.
+abs_shot_angle,engineered,,shot_angle,abs(shot_angle),False,False,False,True,audit only,High values collide with corner-three efficiency; do not use in SDI by default.
+period_seconds_remaining,engineered,,"MINUTES_REMAINING, SECONDS_REMAINING",MINUTES_REMAINING * 60 + SECONDS_REMAINING,False,False,False,False,lower = harder,Current pipeline aliases this as seconds_in_period.
+period_seconds_elapsed,engineered,,"PERIOD, MINUTES_REMAINING, SECONDS_REMAINING",period_length_seconds - period_seconds_remaining,False,False,False,False,higher = harder,Preferred quarter-progression variable for SDI review.
+period_elapsed_pct,engineered,,"period_seconds_elapsed, period_length_seconds",period_seconds_elapsed / period_length_seconds,False,False,False,False,higher = harder,Normalized period progression.
+game_seconds_elapsed,engineered,,"PERIOD, period_seconds_elapsed",sum(completed periods) + period_seconds_elapsed,False,False,False,False,higher = harder,Captures full-game progression including overtime.
+game_minutes_elapsed,engineered,,game_seconds_elapsed,game_seconds_elapsed / 60,False,False,True,True,higher = harder,Default SDI game clock variable running from 0 to 48+.
+seconds_in_period,engineered,,period_seconds_remaining,legacy alias of period_seconds_remaining,True,True,False,False,lower = harder,Kept for xFG/GAM compatibility.
+is_clutch,engineered,,"PERIOD, seconds_in_period",int(PERIOD >= 4 and seconds_in_period <= 120),True,True,False,False,not applicable,Current late-game context flag.
+shot_type_cat,engineered,,"ACTION_TYPE, SHOT_TYPE","exclusive action-family labels including dunk, layup, hook, floater, 2pt_jump, 3pt_jump",False,True,True,True,category-dependent,Used for SDI difficulty scoring and shot-type diagnostics.
+is_corner_three,engineered,,SHOT_ZONE_BASIC,"int(SHOT_ZONE_BASIC in {'Left Corner 3', 'Right Corner 3'})",False,False,False,False,category-dependent,Used to audit the angle sign reversal.
+is_above_break_three,engineered,,SHOT_ZONE_BASIC,int(SHOT_ZONE_BASIC == 'Above the Break 3'),False,False,False,False,category-dependent,Reference group for angle/corner comparisons.
+is_midrange,engineered,,SHOT_ZONE_BASIC,int(SHOT_ZONE_BASIC == 'Mid-Range'),False,False,False,False,category-dependent,Candidate SDI indicator.
+is_restricted_area,engineered,,SHOT_ZONE_BASIC,int(SHOT_ZONE_BASIC == 'Restricted Area'),False,False,False,False,lower = harder,Easy-shot reference flag.
+distance_bucket,engineered,,shot_distance_feet,cut shot_distance_feet into ordered basketball distance bins,False,False,False,False,higher bucket = harder,Candidate grouped diagnostic feature.
+zone_range_bucket,engineered,,SHOT_ZONE_RANGE,normalized text bucket from SHOT_ZONE_RANGE,False,False,False,False,category-dependent,More granular than SHOT_ZONE_BASIC for discovery.
+is_end_of_period,engineered,,period_seconds_remaining,int(period_seconds_remaining <= 30),False,False,False,False,higher = harder,Candidate late-clock pressure flag.
+is_end_of_game,engineered,,"PERIOD, seconds_in_period",int(PERIOD >= 4 and seconds_in_period <= 120),False,False,False,False,higher = harder,Game-context pressure flag; parallels clutch.
+home_indicator,engineered,,"TEAM_NAME, HTM, VTM",int(team tricode from TEAM_NAME matches HTM),False,False,False,False,audit only,Candidate context feature from the full archive.
+shot_clock_remaining,missing_candidate,,,,False,False,False,False,lower = harder,Not present in current archive. Future SDI transform should be max_shot_clock - shot_clock_remaining.

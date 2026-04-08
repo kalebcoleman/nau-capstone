@@ -6,6 +6,7 @@ import csv
 import gzip
 import os
 import sqlite3
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,10 +28,29 @@ BOOTSTRAP_SAMPLES = 8
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from analysis.nba.gam_analysis import (
+    add_shot_type_features as add_nba_gam_shot_type_features,
+    fit_gam as fit_nba_full_gam,
+)
+from analysis.nhl.modeling import (
+    NHL_EXPORT_PATH,
+    NHL_RAW_PATH,
+    add_shot_type_features,
+    build_full_model_effect_frame,
+    compute_farthest_made_goal_distance,
+    export_nhl_historical,
+    fit_expected_goal_gam,
+    load_nhl_modeling_sample,
+    score_expected_goal_rate,
+)
+
 DATA_DIR = SCRIPT_DIR / "data"
 FIGURES_DIR = SCRIPT_DIR / "figures"
 NHL_DATA_DIR = SCRIPT_DIR.parent / "nhl" / "data"
-NHL_APP_DATA_DIR = NHL_DATA_DIR / "app_data"
+NHL_FIGURES_DIR = SCRIPT_DIR.parent / "nhl" / "figures"
 SPATIAL_SPORTS_DB = Path(
     os.environ.get(
         "SPATIAL_SPORTS_DB",
@@ -39,20 +59,25 @@ SPATIAL_SPORTS_DB = Path(
 )
 
 NBA_EXPORT_PATH = DATA_DIR / "nba_shots_2014_2024.csv.gz"
-NHL_EXPORT_PATH = NHL_APP_DATA_DIR / "nhl_shots_2014_2024.csv.gz"
 NBA_SUMMARY_PATH = DATA_DIR / "nba_player_summary_2014_2024.csv"
-NHL_SUMMARY_PATH = DATA_DIR / "nhl_player_summary_2014_2024.csv"
+NHL_SUMMARY_PATH = NHL_DATA_DIR / "nhl_player_summary_2014_2024.csv"
 NBA_GAM_PATH = DATA_DIR / "nba_gam_distance_2014_2024.csv"
-NHL_GAM_PATH = DATA_DIR / "nhl_gam_distance_2014_2024.csv"
+NHL_GAM_PATH = NHL_DATA_DIR / "nhl_gam_distance_2014_2024.csv"
+NBA_SPLINE_PATH = DATA_DIR / "nba_spline_logistic_distance_2014_2024.csv"
+NHL_SPLINE_PATH = NHL_DATA_DIR / "nhl_spline_logistic_distance_2014_2024.csv"
 NBA_POSITION_PATH = DATA_DIR / "nba_position_summary_2014_2024.csv"
-NHL_POSITION_PATH = DATA_DIR / "nhl_position_summary_2014_2024.csv"
+NHL_POSITION_PATH = NHL_DATA_DIR / "nhl_position_summary_2014_2024.csv"
 
 NBA_SDI_FIGURE = FIGURES_DIR / "nba_sdi_vs_actual_2014_2024.png"
-NHL_SDI_FIGURE = FIGURES_DIR / "nhl_sdi_vs_actual_2014_2024.png"
+NHL_SDI_FIGURE = NHL_FIGURES_DIR / "nhl_sdi_vs_actual_2014_2024.png"
 NBA_GAM_FIGURE = FIGURES_DIR / "nba_gam_distance_2014_2024.png"
-NHL_GAM_FIGURE = FIGURES_DIR / "nhl_gam_distance_2014_2024.png"
+NHL_GAM_FIGURE = NHL_FIGURES_DIR / "nhl_gam_distance_2014_2024.png"
+NBA_SPLINE_FIGURE = FIGURES_DIR / "nba_spline_logistic_distance_2014_2024.png"
+NHL_SPLINE_FIGURE = NHL_FIGURES_DIR / "nhl_spline_logistic_distance_2014_2024.png"
+NBA_SPLINE_100FT_FIGURE = FIGURES_DIR / "nba_spline_logistic_distance_2014_2024_100ft_view.png"
+NHL_SPLINE_100FT_FIGURE = NHL_FIGURES_DIR / "nhl_spline_logistic_distance_2014_2024_100ft_view.png"
 NBA_POSITION_FIGURE = FIGURES_DIR / "nba_sdi_by_position_2014_2024.png"
-NHL_POSITION_FIGURE = FIGURES_DIR / "nhl_sdi_by_position_2014_2024.png"
+NHL_POSITION_FIGURE = NHL_FIGURES_DIR / "nhl_sdi_by_position_2014_2024.png"
 
 COURT_LANDMARKS = {
     "NBA": [
@@ -77,9 +102,6 @@ POSITION_COLORS = {
     "NHL": {"C": "#2A6F97", "W": "#D17A22", "D": "#3F8F5F"},
 }
 
-NHL_RAW_PATH = NHL_DATA_DIR / "shots_2007-2024.csv"
-
-
 @dataclass
 class RunningPlayerTotals:
     attempts: int = 0
@@ -91,7 +113,13 @@ class RunningPlayerTotals:
 def ensure_dirs() -> None:
     DATA_DIR.mkdir(exist_ok=True)
     FIGURES_DIR.mkdir(exist_ok=True)
-    NHL_APP_DATA_DIR.mkdir(exist_ok=True)
+    NHL_DATA_DIR.mkdir(exist_ok=True)
+    NHL_FIGURES_DIR.mkdir(exist_ok=True)
+
+
+def plot_nhl_distance_effect(gam_df, output_path: Path) -> None:
+    """Keep NHL distance plots visually aligned with the NBA comparison figure."""
+    plot_gam_distance(gam_df, "NHL", output_path)
 
 
 def season_start_in_window(season: str) -> bool:
@@ -305,6 +333,91 @@ def logit(values: np.ndarray) -> np.ndarray:
     return np.log(clipped / (1 - clipped))
 
 
+NBA_FULL_GAM_FEATURE_COLS = [
+    "LOC_X",
+    "LOC_Y",
+    "shot_distance_feet",
+    "shot_angle",
+    "seconds_in_period",
+    "PERIOD",
+    "is_dunk",
+    "is_layup",
+    "is_hook",
+    "is_floater",
+    "is_jump_shot_2",
+    "is_jump_shot_3",
+    "is_clutch",
+]
+
+
+def build_nba_full_model_effect_frame(
+    gam,
+    reference_df: pd.DataFrame,
+    *,
+    plot_max: float | None = None,
+    n_points: int = 200,
+) -> pd.DataFrame:
+    """Build a distance-effect frame from the full NBA PyGAM model."""
+    base = {
+        "LOC_X": float(pd.to_numeric(reference_df["LOC_X"], errors="coerce").median()),
+        "LOC_Y": float(pd.to_numeric(reference_df["LOC_Y"], errors="coerce").median()),
+        "shot_distance_feet": float(
+            pd.to_numeric(reference_df["shot_distance_feet"], errors="coerce").median()
+        ),
+        "shot_angle": float(
+            pd.to_numeric(reference_df["shot_angle"], errors="coerce").median()
+        ),
+        "seconds_in_period": float(
+            pd.to_numeric(reference_df["seconds_in_period"], errors="coerce").median()
+        ),
+        "PERIOD": float(pd.to_numeric(reference_df["PERIOD"], errors="coerce").median()),
+        "is_dunk": int(reference_df["is_dunk"].mode().iloc[0]),
+        "is_layup": int(reference_df["is_layup"].mode().iloc[0]),
+        "is_hook": int(reference_df["is_hook"].mode().iloc[0]),
+        "is_floater": int(reference_df["is_floater"].mode().iloc[0]),
+        "is_jump_shot_2": int(reference_df["is_jump_shot_2"].mode().iloc[0]),
+        "is_jump_shot_3": int(reference_df["is_jump_shot_3"].mode().iloc[0]),
+        "is_clutch": int(reference_df["is_clutch"].mode().iloc[0]),
+    }
+    distances = pd.to_numeric(reference_df["shot_distance_feet"], errors="coerce").dropna()
+    if distances.empty:
+        raise ValueError("No valid NBA shot distances found for GAM plotting.")
+    if plot_max is None:
+        plot_max = float(distances.max())
+
+    distance_grid = np.linspace(0, float(plot_max), n_points)
+    plot_df = pd.DataFrame({"shot_distance_feet": distance_grid})
+    for col, value in base.items():
+        if col != "shot_distance_feet":
+            plot_df[col] = value
+
+    X_grid = plot_df[NBA_FULL_GAM_FEATURE_COLS].to_numpy(dtype=float)
+    effect = gam.partial_dependence(term=1, X=X_grid)
+    conf = gam.partial_dependence(term=1, X=X_grid, width=0.95)[1]
+
+    baseline_distance = base["shot_distance_feet"]
+    baseline_df = plot_df.iloc[[0]].copy()
+    baseline_df["shot_distance_feet"] = baseline_distance
+    baseline_effect = float(
+        gam.partial_dependence(
+            term=1, X=baseline_df[NBA_FULL_GAM_FEATURE_COLS].to_numpy(dtype=float)
+        )[0]
+    )
+
+    return pd.DataFrame(
+        {
+            "x_value": distance_grid,
+            "fitted_effect": effect - baseline_effect,
+            "lower_ci": conf[:, 0] - baseline_effect,
+            "upper_ci": conf[:, 1] - baseline_effect,
+            "sport": "NBA",
+            "effect_label": "Shot Distance",
+            "season_window": WINDOW_LABEL,
+            "baseline_distance": baseline_distance,
+        }
+    )
+
+
 def build_distance_spline_model(
     df: pd.DataFrame,
     *,
@@ -350,10 +463,13 @@ def bootstrap_distance_effect(
     numeric_controls: list[str],
     categorical_controls: list[str] | None,
     sport: str,
+    distance_max: float | None = None,
 ) -> pd.DataFrame:
     categorical_controls = categorical_controls or []
-    distance_max = DISTANCE_PLOT_MAX.get(sport, float(df[distance_col].max()))
-    distance_grid = np.linspace(0, distance_max, 200)
+    plot_max = distance_max if distance_max is not None else DISTANCE_PLOT_MAX.get(
+        sport, float(df[distance_col].max())
+    )
+    distance_grid = np.linspace(0, plot_max, 200)
     base_row = {}
     for col in numeric_controls:
         base_row[col] = float(df[col].median())
@@ -416,7 +532,20 @@ def build_nba_outputs() -> None:
     sample_df = sample_nba_for_models()
     model = build_nba_expected_model(sample_df)
     print("Scoring full NBA export into player summary ...")
-    gam_df = bootstrap_distance_effect(
+    gam_sample_df = add_nba_gam_shot_type_features(sample_df.copy())
+    gam_sample_df = gam_sample_df.dropna(
+        subset=NBA_FULL_GAM_FEATURE_COLS + ["SHOT_MADE_FLAG"]
+    ).copy()
+    nba_full_gam = fit_nba_full_gam(
+        gam_sample_df[NBA_FULL_GAM_FEATURE_COLS].to_numpy(dtype=float),
+        gam_sample_df["SHOT_MADE_FLAG"].astype(int).to_numpy(),
+    )
+    gam_df = build_nba_full_model_effect_frame(
+        nba_full_gam,
+        gam_sample_df,
+        plot_max=DISTANCE_PLOT_MAX["NBA"],
+    )
+    spline_df = bootstrap_distance_effect(
         sample_df,
         distance_col="shot_distance_feet",
         y_col="SHOT_MADE_FLAG",
@@ -431,6 +560,23 @@ def build_nba_outputs() -> None:
         ],
         categorical_controls=[],
         sport="NBA",
+    )
+    spline_100ft_df = bootstrap_distance_effect(
+        sample_df,
+        distance_col="shot_distance_feet",
+        y_col="SHOT_MADE_FLAG",
+        numeric_controls=[
+            "shot_angle",
+            "seconds_in_period",
+            "PERIOD",
+            "is_clutch",
+            "is_jump_shot",
+            "is_dunk",
+            "is_layup",
+        ],
+        categorical_controls=[],
+        sport="NBA",
+        distance_max=100.0,
     )
 
     totals: dict[tuple[str, str], RunningPlayerTotals] = {}
@@ -502,104 +648,60 @@ def build_nba_outputs() -> None:
 
     gam_df.to_csv(NBA_GAM_PATH, index=False)
     print(f"Saved: {NBA_GAM_PATH}")
+    spline_df.to_csv(NBA_SPLINE_PATH, index=False)
+    print(f"Saved: {NBA_SPLINE_PATH}")
 
     plot_sdi_scatter(summary_df, "NBA", "Actual FG%", NBA_SDI_FIGURE)
     plot_position_sdi(summary_df, "NBA", "Actual FG%", NBA_POSITION_FIGURE)
     plot_gam_distance(gam_df, "NBA", NBA_GAM_FIGURE)
-
-
-def compute_nhl_scalers() -> tuple[float, float]:
-    max_dist = 0.0
-    max_angle = 0.0
-    for chunk in pd.read_csv(NHL_RAW_PATH, chunksize=200_000):
-        chunk = chunk[pd.to_numeric(chunk["season"], errors="coerce").between(2014, 2024)].copy()
-        if chunk.empty:
-            continue
-        distances = pd.to_numeric(chunk["shotDistance"], errors="coerce")
-        angles = pd.to_numeric(chunk["shotAngle"], errors="coerce").abs()
-        if distances.notna().any():
-            max_dist = max(max_dist, float(distances.max()))
-        if angles.notna().any():
-            max_angle = max(max_angle, float(angles.max()))
-    if max_dist <= 0 or max_angle <= 0:
-        raise ValueError("Unable to compute NHL distance/angle scalers.")
-    return max_dist, max_angle
-
-
-def prepare_nhl_chunk(chunk: pd.DataFrame, max_dist: float, max_angle: float) -> pd.DataFrame:
-    keep_cols = [
-        "shotID",
-        "season",
-        "game_id",
-        "team",
-        "teamCode",
-        "goal",
-        "shotGoalieFroze",
-        "shotRebound",
-        "shotRush",
-        "period",
-        "xCord",
-        "yCord",
-        "shotAngle",
-        "shotDistance",
-        "shotType",
-        "shooterName",
-        "xGoal",
-        "shotWasOnGoal",
-    ]
-    current_cols = [col for col in keep_cols if col in chunk.columns]
-    out = chunk[current_cols].copy()
-    for col in ["goal", "shotGoalieFroze", "shotRebound", "shotRush", "period", "shotAngle", "shotDistance", "xGoal"]:
-        if col in out.columns:
-            out[col] = pd.to_numeric(out[col], errors="coerce")
-    out.dropna(subset=["goal", "shotDistance", "shotAngle", "xGoal", "shooterName"], inplace=True)
-
-    out["difficulty_distance"] = (out["shotDistance"] / max_dist) * 100
-    out["difficulty_angle"] = (out["shotAngle"].abs() / max_angle) * 100
-    out["difficulty_rebound"] = np.where(out["shotRebound"].fillna(0) == 1, 30, 0)
-    out["difficulty_goalie_froze"] = np.where(out["shotGoalieFroze"].fillna(0) == 1, 20, 0)
-    out["SDI"] = (
-        out["difficulty_distance"] * 0.4
-        + out["difficulty_angle"] * 0.3
-        + out["difficulty_rebound"] * 0.2
-        + out["difficulty_goalie_froze"] * 0.1
+    plot_gam_distance(
+        spline_df,
+        "NBA",
+        NBA_SPLINE_FIGURE,
+        model_label="Spline-Logistic",
     )
-    return out
-
-
-def export_nhl_historical() -> None:
-    if NHL_EXPORT_PATH.exists():
-        print(f"Using existing NHL export: {NHL_EXPORT_PATH}")
-        return
-    print(f"Exporting historical NHL shots to {NHL_EXPORT_PATH} ...")
-    max_dist, max_angle = compute_nhl_scalers()
-    for chunk_idx, chunk in enumerate(pd.read_csv(NHL_RAW_PATH, chunksize=200_000), start=1):
-            season_num = pd.to_numeric(chunk["season"], errors="coerce")
-            chunk = chunk[season_num.between(2014, 2024)].copy()
-            if chunk.empty:
-                continue
-            chunk = prepare_nhl_chunk(chunk, max_dist, max_angle)
-            chunk.to_csv(
-                NHL_EXPORT_PATH,
-                mode="a",
-                index=False,
-                header=chunk_idx == 1,
-                compression="gzip",
-            )
-            if chunk_idx % 5 == 0:
-                print(f"  wrote NHL export chunk {chunk_idx}")
+    plot_gam_distance(
+        spline_100ft_df,
+        "NBA",
+        NBA_SPLINE_100FT_FIGURE,
+        model_label="Spline-Logistic 100-Foot View",
+        x_max=100.0,
+    )
 
 
 def build_nhl_outputs() -> None:
     print("Building NHL comparison outputs ...")
+    sample_df = load_nhl_modeling_sample()
+    model = fit_expected_goal_gam(sample_df)
+    gam_df = build_full_model_effect_frame(
+        model,
+        sample_df,
+        feature_col="shotDistance",
+        term=1,
+        plot_max=compute_farthest_made_goal_distance(),
+    )
+    spline_df = bootstrap_distance_effect(
+        sample_df,
+        distance_col="shotDistance",
+        y_col="goal",
+        numeric_controls=[
+            "shotAngle",
+            "period",
+            "shotRebound",
+            "shotGoalieFroze",
+            "shotRush",
+        ],
+        categorical_controls=[],
+        sport="NHL",
+    )
     totals: dict[str, RunningPlayerTotals] = {}
-    sample_chunks = []
-    sampled_rows = 0
     for chunk_idx, chunk in enumerate(pd.read_csv(NHL_EXPORT_PATH, chunksize=150_000), start=1):
+        chunk = add_shot_type_features(chunk)
+        chunk["expected_rate"] = score_expected_goal_rate(model, chunk)
         grouped = chunk.groupby("shooterName").agg(
             attempts=("goal", "size"),
             actual_sum=("goal", "sum"),
-            expected_sum=("xGoal", "sum"),
+            expected_sum=("expected_rate", "sum"),
             sdi_sum=("SDI", "sum"),
         )
         for player, row in grouped.iterrows():
@@ -608,11 +710,6 @@ def build_nhl_outputs() -> None:
             entry.actual_sum += float(row["actual_sum"])
             entry.expected_sum += float(row["expected_sum"])
             entry.sdi_sum += float(row["sdi_sum"])
-
-        if sampled_rows < NHL_SAMPLE_SIZE:
-            take = min(50_000, len(chunk), NHL_SAMPLE_SIZE - sampled_rows)
-            sample_chunks.append(chunk.sample(n=take, random_state=42))
-            sampled_rows += take
         if chunk_idx % 5 == 0:
             print(f"  processed NHL summary chunk {chunk_idx}")
 
@@ -642,23 +739,27 @@ def build_nhl_outputs() -> None:
     summary_df.to_csv(NHL_POSITION_PATH, index=False)
     print(f"Saved: {NHL_POSITION_PATH}")
 
-    sample_df = pd.concat(sample_chunks, ignore_index=True)
-    for col in ["shotDistance", "shotAngle", "period", "shotRebound", "shotGoalieFroze", "shotRush", "goal"]:
-        sample_df[col] = pd.to_numeric(sample_df[col], errors="coerce").fillna(0)
-    gam_df = bootstrap_distance_effect(
-        sample_df,
-        distance_col="shotDistance",
-        y_col="goal",
-        numeric_controls=["shotAngle", "period", "shotRebound", "shotGoalieFroze", "shotRush"],
-        categorical_controls=[],
-        sport="NHL",
-    )
     gam_df.to_csv(NHL_GAM_PATH, index=False)
     print(f"Saved: {NHL_GAM_PATH}")
+    spline_df.to_csv(NHL_SPLINE_PATH, index=False)
+    print(f"Saved: {NHL_SPLINE_PATH}")
 
     plot_sdi_scatter(summary_df, "NHL", "Actual Goal %", NHL_SDI_FIGURE)
     plot_position_sdi(summary_df, "NHL", "Actual Goal %", NHL_POSITION_FIGURE)
-    plot_gam_distance(gam_df, "NHL", NHL_GAM_FIGURE)
+    plot_nhl_distance_effect(gam_df, NHL_GAM_FIGURE)
+    plot_gam_distance(
+        spline_df,
+        "NHL",
+        NHL_SPLINE_FIGURE,
+        model_label="Spline-Logistic",
+    )
+    plot_gam_distance(
+        spline_df,
+        "NHL",
+        NHL_SPLINE_100FT_FIGURE,
+        model_label="Spline-Logistic 100-Foot View",
+        x_max=100.0,
+    )
 
 
 def label_extremes(summary_df: pd.DataFrame) -> pd.DataFrame:
@@ -879,7 +980,14 @@ def plot_position_sdi(summary_df: pd.DataFrame, sport: str, y_label: str, output
     plt.close()
 
 
-def plot_gam_distance(gam_df: pd.DataFrame, sport: str, output_path: Path) -> None:
+def plot_gam_distance(
+    gam_df: pd.DataFrame,
+    sport: str,
+    output_path: Path,
+    *,
+    model_label: str = "GAM",
+    x_max: float | None = None,
+) -> None:
     fig, ax = plt.subplots(figsize=(11, 6.8))
     ax.plot(
         gam_df["x_value"],
@@ -906,12 +1014,31 @@ def plot_gam_distance(gam_df: pd.DataFrame, sport: str, output_path: Path) -> No
             alpha=0.95,
             label=label,
         )
-    ax.set_title(f"{sport} GAM Distance Effect with 95% CI ({WINDOW_LABEL})", fontsize=15)
-    ax.set_xlabel("Shot Distance", fontsize=12)
-    ax.set_ylabel("Marginal Log-Odds Contribution", fontsize=12)
+    baseline_col = None
+    if "baseline_distance" in gam_df.columns:
+        baseline_col = "baseline_distance"
+    elif "baseline_value" in gam_df.columns:
+        baseline_col = "baseline_value"
+    if baseline_col is not None:
+        ax.axvline(
+            float(gam_df[baseline_col].iloc[0]),
+            color="#4CAF50",
+            linestyle="--",
+            linewidth=1.5,
+            alpha=0.75,
+            label="Median Distance",
+        )
+    ax.set_title(
+        f"{sport} {model_label} Distance Effect with 95% CI ({WINDOW_LABEL})",
+        fontsize=15,
+    )
+    ax.set_xlabel("Shot Distance (feet)", fontsize=12)
+    ax.set_ylabel("Marginal log-odds contribution", fontsize=12)
     ax.grid(alpha=0.2)
     ax.legend(loc="upper right", fontsize=9, frameon=True)
-    if sport == "NHL":
+    if x_max is not None:
+        ax.set_xlim(0, x_max)
+    elif sport == "NHL":
         ax.set_xlim(0, DISTANCE_PLOT_MAX["NHL"])
     plt.tight_layout()
     plt.savefig(output_path, dpi=220, bbox_inches="tight")
