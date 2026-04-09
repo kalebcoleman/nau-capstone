@@ -55,7 +55,13 @@ def get_share_base_url() -> str:
         qp_share = qp_share[0] if qp_share else ""
     if qp_share:
         return str(qp_share).strip()
-    return os.getenv("NBA_DASHBOARD_SHARE_URL", "").strip()
+
+    env_names = ("CROSS_SPORT_DASHBOARD_SHARE_URL", "NBA_DASHBOARD_SHARE_URL")
+    for env_name in env_names:
+        env_value = os.getenv(env_name, "").strip()
+        if env_value:
+            return env_value
+    return ""
 
 
 def render_qr_code(share_url: str) -> None:
@@ -85,43 +91,19 @@ def render_qr_code(share_url: str) -> None:
 
 
 def render_snapshot_table(snapshot_df: pd.DataFrame) -> None:
-    rows = []
-    for row in snapshot_df.itertuples(index=False):
-        rows.append(
-            f"""
-            <tr>
-              <td><strong>{row.concept}</strong></td>
-              <td>{row.nba_variables}</td>
-              <td>{row.nhl_variables}</td>
-              <td>{row.why_it_matters}</td>
-            </tr>
-            """
-        )
-
+    st.markdown("### Data Snapshot")
     st.markdown(
-        f"""
-        <section class="panel-card">
-          <div class="panel-title">Data Snapshot</div>
-          <div class="panel-copy">
-            The poster only needs the main cross-sport variables. This table keeps the model story compact and judge-friendly.
-          </div>
-          <table class="snapshot-table">
-            <thead>
-              <tr>
-                <th>Concept</th>
-                <th>NBA</th>
-                <th>NHL</th>
-                <th>Why it matters</th>
-              </tr>
-            </thead>
-            <tbody>
-              {"".join(rows)}
-            </tbody>
-          </table>
-        </section>
-        """,
+        f'<div class="panel-copy" style="color:{MUTED_TEXT};">'
+        "The poster only needs the main cross-sport variables. This table keeps the model story compact and judge-friendly."
+        "</div>",
         unsafe_allow_html=True,
     )
+    with st.container(border=True):
+        st.dataframe(
+            snapshot_df,
+            hide_index=True,
+            use_container_width=True,
+        )
 
 
 def render_navigation_links() -> None:
@@ -139,14 +121,14 @@ def render_navigation_links() -> None:
     col1, col2 = st.columns(2)
     with col1:
         st.page_link(
-            Path(__file__).resolve().parent / "sdi_explorer_page.py",
+            APP_DIR / "sdi_explorer_page.py",
             label="Open SDI Explorer",
             icon="📊",
             use_container_width=True,
         )
     with col2:
         st.page_link(
-            Path(__file__).resolve().parent / "gam_explorer_page.py",
+            APP_DIR / "gam_explorer_page.py",
             label="Open GAM Explorer",
             icon="📈",
             use_container_width=True,
@@ -174,7 +156,7 @@ def render_share_panel(share_url: str) -> None:
         st.caption("Use this exact QR block for the printed poster once the app has a public URL.")
     else:
         st.info(
-            "Set `NBA_DASHBOARD_SHARE_URL` to the deployed app URL, or open the app with "
+            "Set `CROSS_SPORT_DASHBOARD_SHARE_URL` to the deployed app URL, or open the app with "
             "`?share_url=https://...` to render the poster QR code."
         )
 

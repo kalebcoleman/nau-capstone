@@ -27,7 +27,7 @@ Core ideas used throughout the repo:
 - [Poster guide](docs/final-poster-guide.md): maps each poster section to the files, figures, and tables that support it
 - [Docs index](docs/README.md): quick index of proposal, comparison-story, and poster documentation
 - [Matched comparison story](docs/proposal/Matched_Comparison_Story.Rmd): reproducible write-up for the final cross-sport narrative
-- [NBA dashboard](analysis/nba/app/streamlit_app.py): interactive poster companion app
+- [Cross-sport dashboard](app/streamlit_app.py): interactive poster companion app
 
 ## Repository Layout
 
@@ -35,7 +35,6 @@ Core ideas used throughout the repo:
 nau-capstone/
 ├── analysis/
 │   ├── nba/
-│   │   ├── app/                         # Streamlit dashboard
 │   │   ├── data/                        # NBA model outputs + poster tables
 │   │   ├── figures/                     # NBA figures used in docs/dashboard
 │   │   ├── models/                      # Saved NBA model artifacts
@@ -50,6 +49,7 @@ nau-capstone/
 │       ├── prepare_app_data.py          # NHL app-data prep
 │       ├── SDI_METHODS.md               # NHL SDI method notes
 │       └── README.md
+├── app/                                 # Repo-front Streamlit dashboard
 ├── data/                                # Top-level compressed archives for visitors
 ├── docs/
 │   ├── README.md
@@ -85,10 +85,9 @@ Install the Python dependencies:
 pip install -r requirements.txt
 ```
 
-Run the NBA dashboard:
+Run the cross-sport dashboard:
 
 ```bash
-cd analysis/nba
 streamlit run app/streamlit_app.py
 ```
 

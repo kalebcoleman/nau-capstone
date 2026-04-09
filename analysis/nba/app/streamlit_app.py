@@ -1,41 +1,13 @@
-"""Entry point for the poster-driven Streamlit demo."""
+"""Compatibility launcher for the repo-front Streamlit app."""
 
 from __future__ import annotations
 
-import sys
+import runpy
 from pathlib import Path
 
-import streamlit as st
 
-APP_DIR = Path(__file__).resolve().parent
-if str(APP_DIR) not in sys.path:
-    sys.path.insert(0, str(APP_DIR))
+REPO_ROOT = Path(__file__).resolve().parents[3]
+TARGET_APP = REPO_ROOT / "app" / "streamlit_app.py"
 
-from path_setup import ensure_project_paths
-
-ensure_project_paths()
-
-from demo_content import NAVIGATION_PAGES
-from app_utils import apply_theme
-
-
-st.set_page_config(
-    page_title="Cross-Sport Shot Analysis",
-    page_icon="🏀",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
-apply_theme()
-
-pages = [
-    st.Page(
-        page["path"],
-        title=page["title"],
-        icon=page["icon"],
-        default=page["default"],
-    )
-    for page in NAVIGATION_PAGES
-]
-
-navigation = st.navigation(pages, position="sidebar", expanded=True)
-navigation.run()
+if __name__ == "__main__":
+    runpy.run_path(str(TARGET_APP), run_name="__main__")

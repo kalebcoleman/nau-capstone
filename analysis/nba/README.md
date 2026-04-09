@@ -9,12 +9,14 @@ This folder contains both sides of the NBA capstone work:
 
 ### Dashboard Surface
 
-- `app/streamlit_app.py`: main Streamlit home page for the poster companion app
-- `app/overview_page.py`: poster-oriented landing page
-- `app/sdi_explorer_page.py`: interactive cross-sport SDI explorer
-- `app/gam_explorer_page.py`: curated GAM figure explorer
-- `app/demo_content.py`: poster-oriented copy and figure groups used across the app
-- `app/utils.py`: plotting, filtering, and model helper functions for the dashboard
+The shared dashboard now lives at the repo front under `app/` because it presents both NBA and NHL results.
+
+- `../../app/streamlit_app.py`: main Streamlit home page for the poster companion app
+- `../../app/overview_page.py`: poster-oriented landing page
+- `../../app/sdi_explorer_page.py`: interactive cross-sport SDI explorer
+- `../../app/gam_explorer_page.py`: curated GAM figure explorer
+- `../../app/demo_content.py`: poster-oriented copy and figure groups used across the app
+- `../../app/app_utils.py`: plotting, filtering, and model helper functions for the dashboard
 
 ### Modeling And Exports
 
@@ -76,6 +78,7 @@ python export_poster_snapshot.py
 Run the dashboard:
 
 ```bash
+cd ../..
 streamlit run app/streamlit_app.py
 ```
 

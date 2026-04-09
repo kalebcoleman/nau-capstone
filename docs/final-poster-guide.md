@@ -110,11 +110,11 @@ Talking points:
 
 Use:
 
-- [`analysis/nba/app/streamlit_app.py`](../analysis/nba/app/streamlit_app.py)
-- [`analysis/nba/app/demo_content.py`](../analysis/nba/app/demo_content.py)
-- [`analysis/nba/app/overview_page.py`](../analysis/nba/app/overview_page.py)
-- [`analysis/nba/app/sdi_explorer_page.py`](../analysis/nba/app/sdi_explorer_page.py)
-- [`analysis/nba/app/gam_explorer_page.py`](../analysis/nba/app/gam_explorer_page.py)
+- [`app/streamlit_app.py`](../app/streamlit_app.py)
+- [`app/demo_content.py`](../app/demo_content.py)
+- [`app/overview_page.py`](../app/overview_page.py)
+- [`app/sdi_explorer_page.py`](../app/sdi_explorer_page.py)
+- [`app/gam_explorer_page.py`](../app/gam_explorer_page.py)
 
 Good framing:
 
@@ -143,6 +143,5 @@ python analysis/nhl/gam_analysis.py
 Run the dashboard:
 
 ```bash
-cd analysis/nba
 streamlit run app/streamlit_app.py
 ```

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from path_setup import NBA_ANALYSIS_DIR, NHL_ANALYSIS_DIR
 
 
@@ -52,12 +50,12 @@ SDI_DEFAULT_MIN_ATTEMPTS = {
 
 GAM_CORE_FIGURES = [
     {
-        "title": "NBA Distance GAM",
-        "path": NBA_FIGURES_DIR / "nba_gam_distance_2014_2024.png",
-        "caption": "Distance is the cleanest shared difficulty signal in basketball. The fitted curve shows how scoring odds change as attempts move away from the basket.",
+        "title": "NBA Distance Effect (2014–2024)",
+        "path": NBA_FIGURES_DIR / "nba_spline_logistic_distance_2014_2024.png",
+        "caption": "Distance is the cleanest shared difficulty signal in basketball. This spline curve shows how scoring odds smoothly decline as attempts move away from the basket.",
     },
     {
-        "title": "NHL Distance GAM",
+        "title": "NHL Distance Effect (2014–2024)",
         "path": NHL_FIGURES_DIR / "nhl_gam_distance_2014_2024.png",
         "caption": "The hockey distance curve drops even more sharply near the net, reflecting how quickly scoring probability decays with shooting distance.",
     },
@@ -66,27 +64,27 @@ GAM_CORE_FIGURES = [
 GAM_EXTRA_GROUPS = {
     "NBA": [
         {
-            "group_title": "NBA Context GAMs",
+            "group_title": "NBA Context Effects",
             "blurb": "These figures show which extra shot contexts mattered most once distance and court location were already in the model.",
             "figures": [
                 {
-                    "title": "Angle Effect",
-                    "path": NBA_FIGURES_DIR / "gam_effect_angle.png",
+                    "title": "NBA Angle Effect (2014–2024)",
+                    "path": NBA_FIGURES_DIR / "nba_gam_angle_2014_2024.png",
                     "caption": "Shot angle captures how side-angle looks differ from straight-on attempts.",
                 },
                 {
-                    "title": "Clock Effect",
-                    "path": NBA_FIGURES_DIR / "gam_effect_clock.png",
+                    "title": "NBA Clock Effect (2014–2024)",
+                    "path": NBA_FIGURES_DIR / "nba_gam_clock_2014_2024.png",
                     "caption": "Clock pressure helps separate late-clock shots from easier early-possession looks.",
                 },
                 {
-                    "title": "Period Effect",
-                    "path": NBA_FIGURES_DIR / "gam_effect_period.png",
+                    "title": "NBA Period Effect (2014–2024)",
+                    "path": NBA_FIGURES_DIR / "nba_gam_period_2014_2024.png",
                     "caption": "Quarter effects capture broad game-state differences beyond location alone.",
                 },
                 {
-                    "title": "Shot Type Effect",
-                    "path": NBA_FIGURES_DIR / "gam_effect_shot_types.png",
+                    "title": "NBA Shot Type Effect (2014–2024)",
+                    "path": NBA_FIGURES_DIR / "nba_gam_shot_types_2014_2024.png",
                     "caption": "The model differentiates dunks, layups, hooks, floaters, and jumper families.",
                 },
             ],
@@ -114,17 +112,17 @@ GAM_EXTRA_GROUPS = {
             "blurb": "These figures expand the hockey side beyond the main poster distance curve.",
             "figures": [
                 {
-                    "title": "Angle Effect",
+                    "title": "NHL Angle Effect (2014–2024)",
                     "path": NHL_FIGURES_DIR / "nhl_gam_angle_2014_2024.png",
                     "caption": "Angle changes difficulty sharply in hockey because off-angle shots lose net visibility and clean shooting windows.",
                 },
                 {
-                    "title": "Non-Empty-Net Distance",
+                    "title": "NHL Non-Empty-Net Distance (2014–2024)",
                     "path": NHL_FIGURES_DIR / "nhl_gam_distance_non_empty_net_distance_only_2014_2024.png",
                     "caption": "Distance-only view restricted to non-empty-net shots.",
                 },
                 {
-                    "title": "All-Shots Distance",
+                    "title": "NHL All-Shots Distance (2014–2024)",
                     "path": NHL_FIGURES_DIR / "nhl_gam_distance_all_shots_distance_only_2014_2024.png",
                     "caption": "Distance-only view including all shots.",
                 },
@@ -135,17 +133,17 @@ GAM_EXTRA_GROUPS = {
             "blurb": "These extra semester outputs show how the distance story changes under alternate modeling cuts.",
             "figures": [
                 {
-                    "title": "Empty-Net Comparison",
+                    "title": "NHL Empty-Net Comparison (2014–2024)",
                     "path": NHL_FIGURES_DIR / "nhl_gam_distance_empty_net_comparison_distance_only_2014_2024.png",
                     "caption": "Comparison between all-shot and non-empty-net distance fits.",
                 },
                 {
-                    "title": "Spline Distance View",
+                    "title": "NHL Spline Distance View (2014–2024)",
                     "path": NHL_FIGURES_DIR / "nhl_spline_logistic_distance_2014_2024.png",
                     "caption": "Spline-based distance view used as a model comparison artifact.",
                 },
                 {
-                    "title": "100-Foot Spline View",
+                    "title": "NHL 100-Foot Spline View (2014–2024)",
                     "path": NHL_FIGURES_DIR / "nhl_spline_logistic_distance_2014_2024_100ft_view.png",
                     "caption": "The same spline fit cropped to the most interpretable scoring range.",
                 },

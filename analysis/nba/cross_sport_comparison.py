@@ -34,6 +34,10 @@ if str(REPO_ROOT) not in sys.path:
 from analysis.nba.gam_analysis import (
     add_shot_type_features as add_nba_gam_shot_type_features,
     fit_gam as fit_nba_full_gam,
+    plot_angle_effect,
+    plot_clock_effect,
+    plot_period_effect,
+    plot_shot_type_effects,
 )
 from analysis.nhl.modeling import (
     NHL_EXPORT_PATH,
@@ -578,6 +582,23 @@ def build_nba_outputs() -> None:
         sport="NBA",
         distance_max=100.0,
     )
+
+    print("Generating context effect GAM plots for 2014-2024...")
+    plot_angle_effect(nba_full_gam, FIGURES_DIR)
+    if (FIGURES_DIR / "gam_effect_angle.png").exists():
+        (FIGURES_DIR / "gam_effect_angle.png").rename(FIGURES_DIR / "nba_gam_angle_2014_2024.png")
+
+    plot_clock_effect(nba_full_gam, FIGURES_DIR)
+    if (FIGURES_DIR / "gam_effect_clock.png").exists():
+        (FIGURES_DIR / "gam_effect_clock.png").rename(FIGURES_DIR / "nba_gam_clock_2014_2024.png")
+
+    plot_period_effect(nba_full_gam, FIGURES_DIR)
+    if (FIGURES_DIR / "gam_effect_period.png").exists():
+        (FIGURES_DIR / "gam_effect_period.png").rename(FIGURES_DIR / "nba_gam_period_2014_2024.png")
+
+    plot_shot_type_effects(gam_sample_df, FIGURES_DIR)
+    if (FIGURES_DIR / "gam_effect_shot_types.png").exists():
+        (FIGURES_DIR / "gam_effect_shot_types.png").rename(FIGURES_DIR / "nba_gam_shot_types_2014_2024.png")
 
     totals: dict[tuple[str, str], RunningPlayerTotals] = {}
     raw_df = pd.read_csv(NBA_EXPORT_PATH, chunksize=150_000)
