@@ -69,11 +69,34 @@ def render_qr_code(share_url: str) -> None:
     <div style="display:flex; justify-content:center; align-items:center; min-height:220px;">
       <div id="poster-qr"></div>
     </div>
+    <div style="text-align:center; margin-top:0.5rem;">
+      <a
+        id="poster-qr-link"
+        style="color:#F5C84C; font-family:sans-serif; font-size:0.85rem; word-break:break-all; text-decoration:none;"
+        href="#"
+        target="_blank"
+        rel="noopener noreferrer"
+      ></a>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
       const target = document.getElementById("poster-qr");
-      const url = {json.dumps(share_url)};
-      if (window.QRCode) {{
+      const link = document.getElementById("poster-qr-link");
+      const explicitUrl = {json.dumps(share_url)};
+
+      function getCurrentAppUrl() {{
+        try {{
+          if (window.parent && window.parent.location && window.parent.location.href) {{
+            return window.parent.location.href;
+          }}
+        }} catch (error) {{
+          // Cross-frame access can fail in some embed contexts. Fall through.
+        }}
+        return document.referrer || window.location.href || "";
+      }}
+
+      const url = explicitUrl || getCurrentAppUrl();
+      if (window.QRCode && url) {{
         new QRCode(target, {{
           text: url,
           width: 200,
@@ -82,12 +105,16 @@ def render_qr_code(share_url: str) -> None:
           colorLight: "#121826",
           correctLevel: QRCode.CorrectLevel.M
         }});
+        link.href = url;
+        link.textContent = url;
       }} else {{
         target.innerHTML = '<div style="color:#98A1B3;font-family:sans-serif;">QR preview unavailable.</div>';
+        link.removeAttribute("href");
+        link.textContent = "";
       }}
     </script>
     """
-    components.html(qr_html, height=240)
+    components.html(qr_html, height=300)
 
 
 def render_snapshot_table(snapshot_df: pd.DataFrame) -> None:
@@ -147,18 +174,11 @@ def render_share_panel(share_url: str) -> None:
         """,
         unsafe_allow_html=True,
     )
+    render_qr_code(share_url)
     if share_url:
-        render_qr_code(share_url)
-        st.markdown(
-            f'<a class="share-url" href="{share_url}" target="_blank">{share_url}</a>',
-            unsafe_allow_html=True,
-        )
         st.caption("Use this exact QR block for the printed poster once the app has a public URL.")
     else:
-        st.info(
-            "Set `CROSS_SPORT_DASHBOARD_SHARE_URL` to the deployed app URL, or open the app with "
-            "`?share_url=https://...` to render the poster QR code."
-        )
+        st.caption("Using the current deployed page URL for the poster QR block.")
 
 
 def main() -> None:
