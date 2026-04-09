@@ -46,15 +46,15 @@ def main() -> None:
     st.title("📈 GAM Explorer")
     st.markdown(
         f'<div class="panel-copy" style="font-size:1rem;color:{MUTED_TEXT};">'
-        f'This page starts with the poster GAM story and then opens up the strongest extra semester outputs without turning the app into a raw figure dump.'
+        f'This page shows the centralized expected FG/xG GAM outputs used for the demo, with matched naming and styling across both sports.'
         f"</div>",
         unsafe_allow_html=True,
     )
 
-    st.markdown("### Poster Core: Distance GAMs")
+    st.markdown("### Core Distance Effects")
     st.markdown(
-        "- Both sports show a strong negative distance effect, but the hockey decline is steeper near the goal.\n"
-        "- These are the two GAM results that anchor the cross-sport poster story."
+        "- These are the two headline partial dependence plots for the cross-sport demo.\n"
+        "- Both are full-window expected FG/xG GAM effects with the same visual language and 95% confidence intervals."
     )
 
     core_cols = st.columns(2, gap="large")
@@ -67,7 +67,7 @@ def main() -> None:
     with nba_tab:
         st.markdown(
             f'<div class="panel-copy" style="color:{MUTED_TEXT};">'
-            f'Additional NBA GAM outputs from the semester. These help explain which contexts mattered beyond the poster distance curve.'
+            f'Full-window NBA expected FG GAM outputs covering continuous effects, discrete controls, and the spatial surface.'
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -77,7 +77,7 @@ def main() -> None:
     with nhl_tab:
         st.markdown(
             f'<div class="panel-copy" style="color:{MUTED_TEXT};">'
-            f'Additional NHL GAM outputs and model-comparison views that support the poster results without crowding the main narrative.'
+            f'Full-window NHL expected goal GAM outputs using all shots, including the added period-time effect and the key discrete controls.'
             f"</div>",
             unsafe_allow_html=True,
         )

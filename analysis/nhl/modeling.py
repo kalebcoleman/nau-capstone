@@ -50,7 +50,9 @@ KEEP_COLS = [
     "shotGoalieFroze",
     "shotRebound",
     "shotRush",
+    "shotOnEmptyNet",
     "period",
+    "time",
     "xCord",
     "yCord",
     "shotAngle",
@@ -60,6 +62,10 @@ KEEP_COLS = [
     "xGoal",
     "shotWasOnGoal",
 ]
+NHL_REQUIRED_EXPORT_COLS = tuple(KEEP_COLS) + (
+    "period_seconds_remaining",
+    "period_seconds_elapsed",
+)
 
 
 def ensure_dirs() -> None:
@@ -67,6 +73,47 @@ def ensure_dirs() -> None:
     FIGURES_DIR.mkdir(exist_ok=True)
     MODELS_DIR.mkdir(exist_ok=True)
     NHL_EXPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def parse_period_time(value: object) -> float:
+    """Parse the raw NHL period clock into elapsed seconds."""
+    if pd.isna(value):
+        return np.nan
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return np.nan
+        if ":" in raw:
+            parts = raw.split(":")
+            if len(parts) == 2:
+                minutes, seconds = parts
+                try:
+                    return float(int(minutes) * 60 + int(seconds))
+                except ValueError:
+                    return np.nan
+        try:
+            return float(raw)
+        except ValueError:
+            return np.nan
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return np.nan
+
+
+def period_length_seconds(period_series: pd.Series) -> pd.Series:
+    period_num = pd.to_numeric(period_series, errors="coerce").fillna(0)
+    return np.where(period_num <= 3, 20 * 60, 5 * 60)
+
+
+def export_is_current(export_path: Path = NHL_EXPORT_PATH) -> bool:
+    if not export_path.exists():
+        return False
+    try:
+        cols = pd.read_csv(export_path, nrows=0).columns.tolist()
+    except Exception:
+        return False
+    return set(NHL_REQUIRED_EXPORT_COLS).issubset(cols)
 
 
 def compute_nhl_scalers(raw_path: Path = NHL_RAW_PATH) -> tuple[float, float]:
@@ -126,11 +173,28 @@ def prepare_nhl_chunk(
     for col in NUMERIC_COLS:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce")
+    if "time" in out.columns:
+        out["time"] = out["time"].map(parse_period_time)
+    if "shotOnEmptyNet" in out.columns:
+        out["shotOnEmptyNet"] = pd.to_numeric(out["shotOnEmptyNet"], errors="coerce")
 
     out.dropna(
-        subset=["goal", "shotDistance", "shotAngle", "xCord", "yCord", "shooterName"],
+        subset=[
+            "goal",
+            "shotDistance",
+            "shotAngle",
+            "xCord",
+            "yCord",
+            "shooterName",
+            "period",
+            "time",
+        ],
         inplace=True,
     )
+    out["period_seconds_elapsed"] = out["time"].clip(lower=0)
+    out["period_seconds_remaining"] = (
+        period_length_seconds(out["period"]) - out["period_seconds_elapsed"]
+    ).clip(lower=0)
 
     out["difficulty_distance"] = (out["shotDistance"] / max_dist) * 100
     out["difficulty_angle"] = (out["shotAngle"].abs() / max_angle) * 100
@@ -152,9 +216,12 @@ def prepare_nhl_chunk(
 
 def export_nhl_historical() -> None:
     ensure_dirs()
-    if NHL_EXPORT_PATH.exists():
+    if export_is_current():
         print(f"Using existing NHL export: {NHL_EXPORT_PATH}")
         return
+    if NHL_EXPORT_PATH.exists():
+        print(f"Refreshing NHL export with updated schema: {NHL_EXPORT_PATH}")
+        NHL_EXPORT_PATH.unlink()
     print(f"Exporting historical NHL shots to {NHL_EXPORT_PATH} ...")
     max_dist, max_angle = compute_nhl_scalers()
     for chunk_idx, chunk in enumerate(
@@ -176,7 +243,7 @@ def export_nhl_historical() -> None:
             print(f"  wrote NHL export chunk {chunk_idx}")
 
 
-def load_nhl_modeling_sample(sample_size: int = NHL_MODEL_SAMPLE_SIZE) -> pd.DataFrame:
+def load_nhl_modeling_sample(sample_size: int | None = NHL_MODEL_SAMPLE_SIZE) -> pd.DataFrame:
     export_nhl_historical()
     df = pd.read_csv(NHL_EXPORT_PATH)
     if "shot_type_family" not in df.columns or "is_wrist_shot" not in df.columns:
@@ -187,11 +254,12 @@ def load_nhl_modeling_sample(sample_size: int = NHL_MODEL_SAMPLE_SIZE) -> pd.Dat
             "yCord",
             "shotDistance",
             "shotAngle",
+            "period_seconds_remaining",
             "period",
             "goal",
         ]
     ).copy()
-    if len(df) > sample_size:
+    if sample_size is not None and len(df) > sample_size:
         df = df.sample(n=sample_size, random_state=SEED)
     return df
 
@@ -235,10 +303,12 @@ FEATURE_COLS = [
     "yCord",
     "shotDistance",
     "shotAngle",
+    "period_seconds_remaining",
     "period",
     "shotRebound",
     "shotGoalieFroze",
     "shotRush",
+    "shotOnEmptyNet",
     "is_wrist_shot",
     "is_snap_shot",
     "is_slap_shot",
@@ -267,14 +337,15 @@ def fit_expected_goal_gam(df: pd.DataFrame) -> LogisticGAM:
         te(0, 1, n_splines=10)
         + s(2, n_splines=14)
         + s(3, n_splines=10)
-        + s(4, n_splines=5)
-        + l(5)
+        + s(4, n_splines=10)
+        + s(5, n_splines=5)
         + l(6)
         + l(7)
         + l(8)
         + l(9)
         + l(10)
         + l(11)
+        + l(12)
     )
     gam.fit(X, y)
     return gam
@@ -318,6 +389,9 @@ def build_distance_effect_frame(
             pd.to_numeric(reference_df["shotDistance"], errors="coerce").median()
         ),
         "shotAngle": float(pd.to_numeric(reference_df["shotAngle"], errors="coerce").median()),
+        "period_seconds_remaining": float(
+            pd.to_numeric(reference_df["period_seconds_remaining"], errors="coerce").median()
+        ),
         "period": float(pd.to_numeric(reference_df["period"], errors="coerce").median()),
         "shotRebound": int(
             pd.to_numeric(reference_df["shotRebound"], errors="coerce").fillna(0).mode().iloc[0]
@@ -327,6 +401,9 @@ def build_distance_effect_frame(
         ),
         "shotRush": int(
             pd.to_numeric(reference_df["shotRush"], errors="coerce").fillna(0).mode().iloc[0]
+        ),
+        "shotOnEmptyNet": int(
+            pd.to_numeric(reference_df["shotOnEmptyNet"], errors="coerce").fillna(0).mode().iloc[0]
         ),
         "is_wrist_shot": int(reference_df["is_wrist_shot"].mode().iloc[0]),
         "is_snap_shot": int(reference_df["is_snap_shot"].mode().iloc[0]),
@@ -380,6 +457,9 @@ def build_full_model_effect_frame(
             pd.to_numeric(reference_df["shotDistance"], errors="coerce").median()
         ),
         "shotAngle": float(pd.to_numeric(reference_df["shotAngle"], errors="coerce").median()),
+        "period_seconds_remaining": float(
+            pd.to_numeric(reference_df["period_seconds_remaining"], errors="coerce").median()
+        ),
         "period": float(pd.to_numeric(reference_df["period"], errors="coerce").median()),
         "shotRebound": int(
             pd.to_numeric(reference_df["shotRebound"], errors="coerce").fillna(0).mode().iloc[0]
@@ -389,6 +469,9 @@ def build_full_model_effect_frame(
         ),
         "shotRush": int(
             pd.to_numeric(reference_df["shotRush"], errors="coerce").fillna(0).mode().iloc[0]
+        ),
+        "shotOnEmptyNet": int(
+            pd.to_numeric(reference_df["shotOnEmptyNet"], errors="coerce").fillna(0).mode().iloc[0]
         ),
         "is_wrist_shot": int(reference_df["is_wrist_shot"].mode().iloc[0]),
         "is_snap_shot": int(reference_df["is_snap_shot"].mode().iloc[0]),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from path_setup import NBA_ANALYSIS_DIR, NHL_ANALYSIS_DIR
+from analysis.gam_explorer_config import GAM_EXPLORER_FIGURES
 
 
 NBA_DATA_DIR = NBA_ANALYSIS_DIR / "data"
@@ -50,104 +51,39 @@ SDI_DEFAULT_MIN_ATTEMPTS = {
 
 GAM_CORE_FIGURES = [
     {
-        "title": "NBA Distance Effect (2014–2024)",
-        "path": NBA_FIGURES_DIR / "nba_spline_logistic_distance_2014_2024.png",
-        "caption": "Distance is the cleanest shared difficulty signal in basketball. This spline curve shows how scoring odds smoothly decline as attempts move away from the basket.",
-    },
-    {
-        "title": "NHL Distance Effect (2014–2024)",
-        "path": NHL_FIGURES_DIR / "nhl_gam_distance_2014_2024.png",
-        "caption": "The hockey distance curve drops even more sharply near the net, reflecting how quickly scoring probability decays with shooting distance.",
-    },
+        "title": fig["title"],
+        "path": fig["figure_path"],
+        "caption": fig["caption"],
+        "sport": fig["sport"],
+        "factor_key": fig["factor_key"],
+    }
+    for fig in GAM_EXPLORER_FIGURES
+    if fig["group"] == "core"
 ]
 
-GAM_EXTRA_GROUPS = {
-    "NBA": [
-        {
-            "group_title": "NBA Context Effects",
-            "blurb": "These figures show which extra shot contexts mattered most once distance and court location were already in the model.",
-            "figures": [
-                {
-                    "title": "NBA Angle Effect (2014–2024)",
-                    "path": NBA_FIGURES_DIR / "nba_gam_angle_2014_2024.png",
-                    "caption": "Shot angle captures how side-angle looks differ from straight-on attempts.",
-                },
-                {
-                    "title": "NBA Clock Effect (2014–2024)",
-                    "path": NBA_FIGURES_DIR / "nba_gam_clock_2014_2024.png",
-                    "caption": "Clock pressure helps separate late-clock shots from easier early-possession looks.",
-                },
-                {
-                    "title": "NBA Period Effect (2014–2024)",
-                    "path": NBA_FIGURES_DIR / "nba_gam_period_2014_2024.png",
-                    "caption": "Quarter effects capture broad game-state differences beyond location alone.",
-                },
-                {
-                    "title": "NBA Shot Type Effect (2014–2024)",
-                    "path": NBA_FIGURES_DIR / "nba_gam_shot_types_2014_2024.png",
-                    "caption": "The model differentiates dunks, layups, hooks, floaters, and jumper families.",
-                },
-            ],
-        },
-        {
-            "group_title": "NBA Spatial GAMs",
-            "blurb": "These visualizations summarize the court surface learned by the model rather than a single one-dimensional effect.",
-            "figures": [
-                {
-                    "title": "Spatial Probability Surface",
-                    "path": NBA_FIGURES_DIR / "gam_spatial_probability.png",
-                    "caption": "Predicted scoring probability across the half court.",
-                },
-                {
-                    "title": "Spatial Tensor Surface",
-                    "path": NBA_FIGURES_DIR / "gam_spatial_tensor.png",
-                    "caption": "Tensor-product smooth showing how location contributes to the GAM.",
-                },
-            ],
-        },
-    ],
-    "NHL": [
-        {
-            "group_title": "NHL Angle and Alternative Distance Views",
-            "blurb": "These figures expand the hockey side beyond the main poster distance curve.",
-            "figures": [
-                {
-                    "title": "NHL Angle Effect (2014–2024)",
-                    "path": NHL_FIGURES_DIR / "nhl_gam_angle_2014_2024.png",
-                    "caption": "Angle changes difficulty sharply in hockey because off-angle shots lose net visibility and clean shooting windows.",
-                },
-                {
-                    "title": "NHL Non-Empty-Net Distance (2014–2024)",
-                    "path": NHL_FIGURES_DIR / "nhl_gam_distance_non_empty_net_distance_only_2014_2024.png",
-                    "caption": "Distance-only view restricted to non-empty-net shots.",
-                },
-                {
-                    "title": "NHL All-Shots Distance (2014–2024)",
-                    "path": NHL_FIGURES_DIR / "nhl_gam_distance_all_shots_distance_only_2014_2024.png",
-                    "caption": "Distance-only view including all shots.",
-                },
-            ],
-        },
-        {
-            "group_title": "NHL Comparison and Spline Variants",
-            "blurb": "These extra semester outputs show how the distance story changes under alternate modeling cuts.",
-            "figures": [
-                {
-                    "title": "NHL Empty-Net Comparison (2014–2024)",
-                    "path": NHL_FIGURES_DIR / "nhl_gam_distance_empty_net_comparison_distance_only_2014_2024.png",
-                    "caption": "Comparison between all-shot and non-empty-net distance fits.",
-                },
-                {
-                    "title": "NHL Spline Distance View (2014–2024)",
-                    "path": NHL_FIGURES_DIR / "nhl_spline_logistic_distance_2014_2024.png",
-                    "caption": "Spline-based distance view used as a model comparison artifact.",
-                },
-                {
-                    "title": "NHL 100-Foot Spline View (2014–2024)",
-                    "path": NHL_FIGURES_DIR / "nhl_spline_logistic_distance_2014_2024_100ft_view.png",
-                    "caption": "The same spline fit cropped to the most interpretable scoring range.",
-                },
-            ],
-        },
-    ],
-}
+GAM_EXTRA_GROUPS = {"NBA": [], "NHL": []}
+for sport in ("NBA", "NHL"):
+    sport_figures = [fig for fig in GAM_EXPLORER_FIGURES if fig["sport"] == sport and fig["group"] != "core"]
+    seen_groups: set[str] = set()
+    for fig in sport_figures:
+        group_key = str(fig["group"])
+        if group_key in seen_groups:
+            continue
+        seen_groups.add(group_key)
+        grouped = [item for item in sport_figures if item["group"] == group_key]
+        GAM_EXTRA_GROUPS[sport].append(
+            {
+                "group_title": grouped[0]["group_title"],
+                "blurb": grouped[0]["group_blurb"],
+                "figures": [
+                    {
+                        "title": item["title"],
+                        "path": item["figure_path"],
+                        "caption": item["caption"],
+                        "factor_key": item["factor_key"],
+                        "plot_type": item["plot_type"],
+                    }
+                    for item in grouped
+                ],
+            }
+        )
