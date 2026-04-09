@@ -156,6 +156,38 @@ NHL_CONTINUOUS_SPECS = {
     },
 }
 
+NBA_SPLINE_DISTANCE_SPEC = {
+    "distance_col": "shot_distance_feet",
+    "y_col": "SHOT_MADE_FLAG",
+    "numeric_controls": [
+        "shot_angle",
+        "seconds_in_period",
+        "PERIOD",
+        "is_clutch",
+        "is_jump_shot",
+        "is_dunk",
+        "is_layup",
+    ],
+    "categorical_controls": [],
+    "x_label": "Shot Distance (feet)",
+}
+
+NHL_SPLINE_DISTANCE_SPEC = {
+    "distance_col": "shotDistance",
+    "y_col": "goal",
+    "numeric_controls": [
+        "shotAngle",
+        "period_seconds_remaining",
+        "period",
+        "shotRebound",
+        "shotGoalieFroze",
+        "shotRush",
+        "shotOnEmptyNet",
+    ],
+    "categorical_controls": [],
+    "x_label": "Shot Distance (feet)",
+}
+
 NBA_DISCRETE_SPECS = {
     "clutch": {
         "x_label": "State",
@@ -1011,6 +1043,29 @@ def build_nba_outputs() -> None:
         )
         save_continuous_artifact(effect_df, spec, x_label=str(settings["x_label"]))
 
+    nba_spline_spec = EXPLORER_FIGURES[("NBA", "distance_spline", "continuous_pdp")]
+    nba_spline_df = bootstrap_distance_effect(
+        sample_df,
+        distance_col=str(NBA_SPLINE_DISTANCE_SPEC["distance_col"]),
+        y_col=str(NBA_SPLINE_DISTANCE_SPEC["y_col"]),
+        numeric_controls=list(NBA_SPLINE_DISTANCE_SPEC["numeric_controls"]),
+        categorical_controls=list(NBA_SPLINE_DISTANCE_SPEC["categorical_controls"]),
+        sport="NBA",
+        distance_max=DISTANCE_PLOT_MAX["NBA"],
+    )
+    nba_spline_df = finalize_effect_frame(
+        nba_spline_df,
+        sport="NBA",
+        factor_key="distance_spline",
+        plot_type="continuous_pdp",
+        target_label=str(nba_spline_spec["target_label"]),
+    )
+    save_continuous_artifact(
+        nba_spline_df,
+        nba_spline_spec,
+        x_label=str(NBA_SPLINE_DISTANCE_SPEC["x_label"]),
+    )
+
     for factor_key, settings in NBA_DISCRETE_SPECS.items():
         spec = EXPLORER_FIGURES[("NBA", factor_key, "discrete_summary")]
         effect_df = build_nba_discrete_effect_frame(
@@ -1136,6 +1191,29 @@ def build_nhl_outputs() -> None:
             target_label=str(spec["target_label"]),
         )
         save_continuous_artifact(effect_df, spec, x_label=str(settings["x_label"]))
+
+    nhl_spline_spec = EXPLORER_FIGURES[("NHL", "distance_spline", "continuous_pdp")]
+    nhl_spline_df = bootstrap_distance_effect(
+        sample_df,
+        distance_col=str(NHL_SPLINE_DISTANCE_SPEC["distance_col"]),
+        y_col=str(NHL_SPLINE_DISTANCE_SPEC["y_col"]),
+        numeric_controls=list(NHL_SPLINE_DISTANCE_SPEC["numeric_controls"]),
+        categorical_controls=list(NHL_SPLINE_DISTANCE_SPEC["categorical_controls"]),
+        sport="NHL",
+        distance_max=DISTANCE_PLOT_MAX["NHL"],
+    )
+    nhl_spline_df = finalize_effect_frame(
+        nhl_spline_df,
+        sport="NHL",
+        factor_key="distance_spline",
+        plot_type="continuous_pdp",
+        target_label=str(nhl_spline_spec["target_label"]),
+    )
+    save_continuous_artifact(
+        nhl_spline_df,
+        nhl_spline_spec,
+        x_label=str(NHL_SPLINE_DISTANCE_SPEC["x_label"]),
+    )
 
     for factor_key, settings in NHL_DISCRETE_SPECS.items():
         spec = EXPLORER_FIGURES[("NHL", factor_key, "discrete_summary")]

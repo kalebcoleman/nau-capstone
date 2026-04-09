@@ -29,6 +29,7 @@ SPORT_META = {
 
 FACTOR_LABELS = {
     "distance": "Distance",
+    "distance_spline": "Distance Spline",
     "angle": "Angle",
     "clock": "Clock",
     "period": "Period",
@@ -43,6 +44,7 @@ FACTOR_LABELS = {
 
 PLOT_GROUPS = {
     "core": "Core Distance",
+    "variants": "Distance Variants",
     "continuous": "Continuous Context",
     "discrete": "Discrete Context",
     "spatial": "Spatial Surface",
@@ -50,6 +52,7 @@ PLOT_GROUPS = {
 
 GROUP_BLURBS = {
     "core": "The headline expected FG/xG distance curves for the demo.",
+    "variants": "Alternative distance-model views so the spline versions can be reviewed against the full-model GAMs.",
     "continuous": "One-dimensional partial dependence plots for the continuous or ordered GAM factors.",
     "discrete": "Compact summaries for binary and categorical controls kept in the full GAM.",
     "spatial": "Two-dimensional location effects learned by the full model.",
@@ -71,6 +74,22 @@ FACTOR_SPECS = [
         "group": "core",
         "display_order": 20,
         "caption": "Full-window expected goal GAM partial dependence for all-shot distance with rink landmarks.",
+    },
+    {
+        "sport": "NBA",
+        "factor_key": "distance_spline",
+        "plot_type": "continuous_pdp",
+        "group": "variants",
+        "display_order": 25,
+        "caption": "Spline-logistic distance view for NBA expected FG, included as an alternate distance story next to the full-model GAM.",
+    },
+    {
+        "sport": "NHL",
+        "factor_key": "distance_spline",
+        "plot_type": "continuous_pdp",
+        "group": "variants",
+        "display_order": 26,
+        "caption": "Spline-logistic distance view for NHL expected goal so it can be compared directly with the full-model GAM distance effect.",
     },
     {
         "sport": "NBA",
@@ -199,6 +218,13 @@ MARKERS = {
         {"label": "Restricted Area", "value": 4.0, "color": "#2E8B57", "linestyle": ":"},
         {"label": "Corner 3", "value": 22.0, "color": "#C97C00", "linestyle": ":"},
         {"label": "Arc 3", "value": 23.75, "color": "#8B1E3F", "linestyle": ":"},
+        {"label": "Halfway Mark", "value": 30.0, "color": "#6A4C93", "linestyle": ":"},
+    ],
+    ("NBA", "distance_spline"): [
+        {"label": "Restricted Area", "value": 4.0, "color": "#2E8B57", "linestyle": ":"},
+        {"label": "Corner 3", "value": 22.0, "color": "#C97C00", "linestyle": ":"},
+        {"label": "Arc 3", "value": 23.75, "color": "#8B1E3F", "linestyle": ":"},
+        {"label": "Halfway Mark", "value": 30.0, "color": "#6A4C93", "linestyle": ":"},
     ],
     ("NBA", "angle"): [
         {"label": "Straight On", "value": 0.0, "color": "#6A4C93", "linestyle": ":"},
@@ -211,6 +237,14 @@ MARKERS = {
         {"label": "Top Circles", "value": 33.0, "color": "#E09F3E", "linestyle": ":"},
         {"label": "Blue Line", "value": 60.0, "color": "#8B1E3F", "linestyle": ":"},
         {"label": "Center Red Line", "value": 89.0, "color": "#6A4C93", "linestyle": ":"},
+        {"label": "Halfway Mark", "value": 47.0, "color": "#3F8F5F", "linestyle": ":"},
+    ],
+    ("NHL", "distance_spline"): [
+        {"label": "Crease Edge", "value": 6.0, "color": "#2E8B57", "linestyle": ":"},
+        {"label": "Top Circles", "value": 33.0, "color": "#E09F3E", "linestyle": ":"},
+        {"label": "Blue Line", "value": 60.0, "color": "#8B1E3F", "linestyle": ":"},
+        {"label": "Center Red Line", "value": 89.0, "color": "#6A4C93", "linestyle": ":"},
+        {"label": "Halfway Mark", "value": 47.0, "color": "#3F8F5F", "linestyle": ":"},
     ],
     ("NHL", "angle"): [
         {"label": "Straight On", "value": 0.0, "color": "#6A4C93", "linestyle": ":"},
@@ -230,6 +264,8 @@ def _build_title(sport: str, factor_key: str, plot_type: str) -> str:
         return f"{sport} {target_label} {factor_label} ({WINDOW_LABEL})"
     if plot_type == "discrete_summary":
         return f"{sport} {target_label} {factor_label} Summary ({WINDOW_LABEL})"
+    if factor_key == "distance_spline":
+        return f"{sport} {target_label} Distance Spline with 95% CI ({WINDOW_LABEL})"
     return f"{sport} {target_label} {factor_label} Effect with 95% CI ({WINDOW_LABEL})"
 
 
@@ -267,4 +303,3 @@ GAM_EXPLORER_FIGURES = tuple(
     build_figure_spec(spec)
     for spec in sorted(FACTOR_SPECS, key=lambda item: int(item["display_order"]))
 )
-
