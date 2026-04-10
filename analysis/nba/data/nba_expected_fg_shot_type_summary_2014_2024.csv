@@ -1,0 +1,8 @@
+sport,model_family,target_label,factor_key,plot_type,x_value,fitted_effect,lower_ci,upper_ci,baseline_value,season_window,level_key,level_label
+NBA,LogisticGAM,Expected FG,shot_type,discrete_summary,0.0,0.0,,,,2014-2024,baseline,Other
+NBA,LogisticGAM,Expected FG,shot_type,discrete_summary,1.0,1.2616021530025998,,,,2014-2024,is_dunk,Dunk
+NBA,LogisticGAM,Expected FG,shot_type,discrete_summary,2.0,-0.40428493841972973,,,,2014-2024,is_layup,Layup
+NBA,LogisticGAM,Expected FG,shot_type,discrete_summary,3.0,-0.16127908785417622,,,,2014-2024,is_hook,Hook
+NBA,LogisticGAM,Expected FG,shot_type,discrete_summary,4.0,-0.26437723235710137,,,,2014-2024,is_floater,Floater
+NBA,LogisticGAM,Expected FG,shot_type,discrete_summary,5.0,-0.5641591864598291,,,,2014-2024,is_jump_shot_2,2PT Jump
+NBA,LogisticGAM,Expected FG,shot_type,discrete_summary,6.0,-0.5556198430794645,,,,2014-2024,is_jump_shot_3,3PT Jump
