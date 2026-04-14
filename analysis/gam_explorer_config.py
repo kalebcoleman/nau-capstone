@@ -51,8 +51,8 @@ PLOT_GROUPS = {
 }
 
 GROUP_BLURBS = {
-    "core": "The headline expected FG/xG distance curves for the demo.",
-    "variants": "Alternative distance-model views so the spline versions can be reviewed against the full-model GAMs.",
+    "core": "The headline distance views used in the final poster story.",
+    "variants": "Alternate distance-model views kept as support figures so the non-headline fit for each sport stays available for comparison.",
     "continuous": "One-dimensional partial dependence plots for the continuous or ordered GAM factors.",
     "discrete": "Compact summaries for binary and categorical controls kept in the full GAM.",
     "spatial": "Two-dimensional location effects learned by the full model.",
@@ -63,9 +63,9 @@ FACTOR_SPECS = [
         "sport": "NBA",
         "factor_key": "distance",
         "plot_type": "continuous_pdp",
-        "group": "core",
-        "display_order": 10,
-        "caption": "Full-window expected FG GAM partial dependence for shot distance with basketball landmarks.",
+        "group": "variants",
+        "display_order": 25,
+        "caption": "Full-window expected FG GAM distance effect kept in support so the alternate full-model distance fit is still available beside the spline headline.",
     },
     {
         "sport": "NHL",
@@ -73,15 +73,15 @@ FACTOR_SPECS = [
         "plot_type": "continuous_pdp",
         "group": "core",
         "display_order": 20,
-        "caption": "Full-window expected goal GAM partial dependence for all-shot distance with rink landmarks.",
+        "caption": "Full-window expected goal GAM partial dependence for all-shot distance, used as the NHL headline distance figure in the final poster story.",
     },
     {
         "sport": "NBA",
         "factor_key": "distance_spline",
         "plot_type": "continuous_pdp",
-        "group": "variants",
-        "display_order": 25,
-        "caption": "Spline-logistic distance view for NBA expected FG, included as an alternate distance story next to the full-model GAM.",
+        "group": "core",
+        "display_order": 10,
+        "caption": "Spline distance view for NBA expected FG, used as the headline distance figure in the final poster story.",
     },
     {
         "sport": "NHL",
@@ -89,7 +89,7 @@ FACTOR_SPECS = [
         "plot_type": "continuous_pdp",
         "group": "variants",
         "display_order": 26,
-        "caption": "Spline-logistic distance view for NHL expected goal so it can be compared directly with the full-model GAM distance effect.",
+        "caption": "Spline distance view for NHL expected goal kept in support so it can be compared directly with the headline full-model GAM distance effect.",
     },
     {
         "sport": "NBA",
@@ -218,13 +218,11 @@ MARKERS = {
         {"label": "Restricted Area", "value": 4.0, "color": "#2E8B57", "linestyle": ":"},
         {"label": "Corner 3", "value": 22.0, "color": "#C97C00", "linestyle": ":"},
         {"label": "Arc 3", "value": 23.75, "color": "#8B1E3F", "linestyle": ":"},
-        {"label": "Halfway Mark", "value": 30.0, "color": "#6A4C93", "linestyle": ":"},
     ],
     ("NBA", "distance_spline"): [
         {"label": "Restricted Area", "value": 4.0, "color": "#2E8B57", "linestyle": ":"},
         {"label": "Corner 3", "value": 22.0, "color": "#C97C00", "linestyle": ":"},
         {"label": "Arc 3", "value": 23.75, "color": "#8B1E3F", "linestyle": ":"},
-        {"label": "Halfway Mark", "value": 30.0, "color": "#6A4C93", "linestyle": ":"},
     ],
     ("NBA", "angle"): [
         {"label": "Straight On", "value": 0.0, "color": "#6A4C93", "linestyle": ":"},
@@ -237,14 +235,12 @@ MARKERS = {
         {"label": "Top Circles", "value": 33.0, "color": "#E09F3E", "linestyle": ":"},
         {"label": "Blue Line", "value": 60.0, "color": "#8B1E3F", "linestyle": ":"},
         {"label": "Center Red Line", "value": 89.0, "color": "#6A4C93", "linestyle": ":"},
-        {"label": "Halfway Mark", "value": 47.0, "color": "#3F8F5F", "linestyle": ":"},
     ],
     ("NHL", "distance_spline"): [
         {"label": "Crease Edge", "value": 6.0, "color": "#2E8B57", "linestyle": ":"},
         {"label": "Top Circles", "value": 33.0, "color": "#E09F3E", "linestyle": ":"},
         {"label": "Blue Line", "value": 60.0, "color": "#8B1E3F", "linestyle": ":"},
         {"label": "Center Red Line", "value": 89.0, "color": "#6A4C93", "linestyle": ":"},
-        {"label": "Halfway Mark", "value": 47.0, "color": "#3F8F5F", "linestyle": ":"},
     ],
     ("NHL", "angle"): [
         {"label": "Straight On", "value": 0.0, "color": "#6A4C93", "linestyle": ":"},

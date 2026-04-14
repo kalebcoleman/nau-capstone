@@ -65,6 +65,7 @@ NHL_DISTANCE_LANDMARKS = [
     ("Blue line", 60.0, "#8B1E3F"),
     ("Center red line", 89.0, "#6A4C93"),
 ]
+POSTER_EXPORT_DPI = 400
 
 
 def add_landmark_lines(ax, *, max_x: float) -> None:
@@ -115,7 +116,7 @@ def plot_effect(
         add_landmark_lines(ax, max_x=float(gam_df["x_value"].max()))
     ax.legend(loc="upper right")
     plt.tight_layout()
-    plt.savefig(output_path, dpi=200)
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     plt.close()
 
 
@@ -174,7 +175,7 @@ def plot_distance_comparison(all_df, non_empty_df):
     ax.grid(True, alpha=0.3)
     ax.legend(loc="upper right")
     plt.tight_layout()
-    plt.savefig(COMPARISON_FIGURE_OUTPUT_PATH, dpi=200)
+    plt.savefig(COMPARISON_FIGURE_OUTPUT_PATH, dpi=POSTER_EXPORT_DPI)
     plt.close()
 
 

@@ -35,6 +35,7 @@ FIGURES_DIR = ANALYSIS_DIR / "figures"
 MODELS_DIR = ANALYSIS_DIR / "models"
 SEED = 42
 DISTANCE_CAP_FT = 35  # optional cap if enabled for stability
+POSTER_EXPORT_DPI = 400
 
 # Rolling window configuration (matches expected_points_analysis.py)
 TARGET_SEASON = "2025-26"
@@ -177,6 +178,8 @@ def fit_gam(X_train, y_train):
         + l(12)  # is_clutch
     )
 
+    # Increase regularization (lam) and max iterations to help convergence
+    gam.set_params(lam=1.0, max_iter=200)
     gam.fit(X_train, y_train)
     return gam
 
@@ -238,7 +241,7 @@ def plot_distance_effect(gam, output_dir, target_df_all=None, obs_max=None):
 
     plt.tight_layout()
     output_path = output_dir / "gam_effect_distance.png"
-    plt.savefig(output_path, dpi=200)
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     print(f"Saved: {output_path}")
     plt.close()
 
@@ -270,7 +273,7 @@ def plot_angle_effect(gam, output_dir):
 
     plt.tight_layout()
     output_path = output_dir / "gam_effect_angle.png"
-    plt.savefig(output_path, dpi=200)
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     print(f"Saved: {output_path}")
     plt.close()
 
@@ -305,7 +308,7 @@ def plot_clock_effect(gam, output_dir):
 
     plt.tight_layout()
     output_path = output_dir / "gam_effect_clock.png"
-    plt.savefig(output_path, dpi=200)
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     print(f"Saved: {output_path}")
     plt.close()
 
@@ -338,7 +341,7 @@ def plot_period_effect(gam, output_dir):
 
     plt.tight_layout()
     output_path = output_dir / "gam_effect_period.png"
-    plt.savefig(output_path, dpi=200)
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     print(f"Saved: {output_path}")
     plt.close()
 
@@ -398,7 +401,7 @@ def plot_shot_type_effects(df, output_dir):
 
     plt.tight_layout()
     output_path = output_dir / "gam_effect_shot_types.png"
-    plt.savefig(output_path, dpi=200)
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     print(f"Saved: {output_path}")
     plt.close()
 
@@ -467,7 +470,7 @@ def plot_spatial_tensor(gam, output_dir, df, min_count=25):
     )
 
     output_path = output_dir / "gam_spatial_probability.png"
-    plt.savefig(output_path, dpi=200)
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     print(f"Saved: {output_path}")
     plt.close()
 
@@ -490,7 +493,7 @@ def plot_spatial_tensor(gam, output_dir, df, min_count=25):
     )
 
     output_path = output_dir / "gam_spatial_tensor.png"
-    plt.savefig(output_path, dpi=200)
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     print(f"Saved: {output_path}")
     plt.close()
 

@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+from matplotlib.figure import Figure
 
 from path_setup import ensure_project_paths
 
@@ -191,6 +195,70 @@ def apply_theme() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+def build_nhl_distance_comparison_figure(
+    *,
+    all_shots_data_path: Path,
+    non_empty_net_data_path: Path,
+    title: str,
+    markers: list[dict[str, object]] | None = None,
+) -> Figure:
+    all_df = pd.read_csv(all_shots_data_path)
+    non_empty_df = pd.read_csv(non_empty_net_data_path)
+
+    fig, ax = plt.subplots(figsize=(11, 6.8))
+    series_specs = (
+        (all_df, "All shots", "#C06C2B"),
+        (non_empty_df, "Non-empty-net shots", "#2A6F97"),
+    )
+
+    max_x = 0.0
+    for frame, label, color in series_specs:
+        x_values = pd.to_numeric(frame["x_value"], errors="coerce")
+        effects = pd.to_numeric(frame["fitted_effect"], errors="coerce")
+        lower_ci = pd.to_numeric(frame["lower_ci"], errors="coerce")
+        upper_ci = pd.to_numeric(frame["upper_ci"], errors="coerce")
+
+        ax.plot(x_values, effects, color=color, linewidth=2.5, label=label)
+        ax.fill_between(x_values, lower_ci, upper_ci, color=color, alpha=0.18)
+
+        baseline_col = "baseline_value" if "baseline_value" in frame.columns else "baseline_distance"
+        baseline_value = float(pd.to_numeric(frame[baseline_col], errors="coerce").iloc[0])
+        if pd.notna(baseline_value):
+            ax.axvline(
+                baseline_value,
+                color=color,
+                linestyle="--",
+                linewidth=1.5,
+                alpha=0.55,
+                label=f"{label} median baseline",
+            )
+
+        max_x = max(max_x, float(x_values.max()))
+
+    ax.axhline(0, color="#7A7A7A", linestyle="--", alpha=0.5, label="Baseline")
+    for marker in markers or []:
+        marker_value = float(marker["value"])
+        if marker_value > max_x:
+            continue
+        ax.axvline(
+            marker_value,
+            color=str(marker["color"]),
+            linestyle=str(marker.get("linestyle", ":")),
+            linewidth=1.7,
+            alpha=0.9,
+            label=str(marker["label"]),
+        )
+
+    ax.set_xlim(0, max_x)
+    ax.set_title(title, fontsize=15)
+    ax.set_xlabel("Shot Distance (feet)", fontsize=12)
+    ax.set_ylabel("Marginal log-odds contribution", fontsize=12)
+    ax.grid(alpha=0.2)
+    ax.legend(loc="upper right", fontsize=8.5, frameon=True)
+    fig.tight_layout()
+    return fig
 
 
 @st.cache_data(show_spinner=False)

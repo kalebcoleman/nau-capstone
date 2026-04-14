@@ -20,6 +20,7 @@ from demo_content import (
     ABSTRACT_TEXT,
     APP_SUBTITLE,
     APP_TITLE,
+    GITHUB_REPO_URL,
     MAIN_RESULT_BULLETS,
     MODEL_MEASURE_BULLETS,
     SDI_SUMMARY_PATHS,
@@ -204,6 +205,7 @@ def main() -> None:
         """,
         unsafe_allow_html=True,
     )
+    st.markdown(f"[View GitHub Repository]({GITHUB_REPO_URL})")
 
     metric_cols = st.columns(4)
     metric_cols[0].metric("NBA Players", f"{len(nba_summary):,}" if not nba_summary.empty else "—")

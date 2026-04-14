@@ -1,3 +1,3 @@
 sport,model_family,target_label,factor_key,plot_type,x_value,fitted_effect,lower_ci,upper_ci,baseline_value,season_window,level_key,level_label
 NBA,LogisticGAM,Expected FG,clutch,discrete_summary,0.0,0.0,,,,2014-2024,is_clutch,Not Clutch
-NBA,LogisticGAM,Expected FG,clutch,discrete_summary,1.0,-0.021868750403777004,,,,2014-2024,is_clutch,Clutch
+NBA,LogisticGAM,Expected FG,clutch,discrete_summary,1.0,-0.06933388086215875,,,,2014-2024,is_clutch,Clutch

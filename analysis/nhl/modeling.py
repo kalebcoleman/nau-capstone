@@ -26,6 +26,7 @@ SEED = 42
 NHL_MODEL_SAMPLE_SIZE = 300_000
 NHL_DISTANCE_PLOT_SAMPLE_SIZE = 200_000
 DISTANCE_PLOT_MAX = 100.0
+NHL_SDI_NORMALIZATION = 100.0
 
 SHOT_TYPE_FAMILIES = ("wrist", "snap", "slap", "backhand")
 NUMERIC_COLS = [
@@ -65,6 +66,7 @@ KEEP_COLS = [
 NHL_REQUIRED_EXPORT_COLS = tuple(KEEP_COLS) + (
     "period_seconds_remaining",
     "period_seconds_elapsed",
+    "SDI",
 )
 
 
@@ -113,7 +115,16 @@ def export_is_current(export_path: Path = NHL_EXPORT_PATH) -> bool:
         cols = pd.read_csv(export_path, nrows=0).columns.tolist()
     except Exception:
         return False
-    return set(NHL_REQUIRED_EXPORT_COLS).issubset(cols)
+    if not set(NHL_REQUIRED_EXPORT_COLS).issubset(cols):
+        return False
+    try:
+        sample = pd.read_csv(export_path, usecols=["SDI"], nrows=5_000)
+    except Exception:
+        return False
+    sdi = pd.to_numeric(sample["SDI"], errors="coerce").dropna()
+    if sdi.empty:
+        return False
+    return float(sdi.quantile(0.95)) <= 1.0
 
 
 def compute_nhl_scalers(raw_path: Path = NHL_RAW_PATH) -> tuple[float, float]:
@@ -203,13 +214,14 @@ def prepare_nhl_chunk(
         out["shotGoalieFroze"].fillna(0) == 1, 20, 0
     )
     out["difficulty_rush"] = np.where(out["shotRush"].fillna(0) == 1, 20, 0)
-    out["SDI"] = (
+    weighted_sdi = (
         out["difficulty_distance"] * 0.35
         + out["difficulty_angle"] * 0.25
         + out["difficulty_rebound"] * 0.2
         + out["difficulty_goalie_froze"] * 0.1
         + out["difficulty_rush"] * 0.1
     )
+    out["SDI"] = weighted_sdi / NHL_SDI_NORMALIZATION
     out = add_shot_type_features(out)
     return out
 
@@ -243,7 +255,11 @@ def export_nhl_historical() -> None:
             print(f"  wrote NHL export chunk {chunk_idx}")
 
 
-def load_nhl_modeling_sample(sample_size: int | None = NHL_MODEL_SAMPLE_SIZE) -> pd.DataFrame:
+def load_nhl_modeling_sample(
+    sample_size: int | None = NHL_MODEL_SAMPLE_SIZE,
+    *,
+    exclude_empty_net: bool = False,
+) -> pd.DataFrame:
     export_nhl_historical()
     df = pd.read_csv(NHL_EXPORT_PATH)
     if "shot_type_family" not in df.columns or "is_wrist_shot" not in df.columns:
@@ -259,6 +275,8 @@ def load_nhl_modeling_sample(sample_size: int | None = NHL_MODEL_SAMPLE_SIZE) ->
             "goal",
         ]
     ).copy()
+    if exclude_empty_net:
+        df = df[pd.to_numeric(df["shotOnEmptyNet"], errors="coerce").fillna(0) != 1].copy()
     if sample_size is not None and len(df) > sample_size:
         df = df.sample(n=sample_size, random_state=SEED)
     return df
@@ -325,7 +343,12 @@ def build_feature_matrix(df: pd.DataFrame) -> np.ndarray:
     return out[FEATURE_COLS].to_numpy(dtype=float)
 
 
-def fit_expected_goal_gam(df: pd.DataFrame) -> LogisticGAM:
+def fit_expected_goal_gam(
+    df: pd.DataFrame,
+    *,
+    lam: float | None = None,
+    max_iter: int | None = None,
+) -> LogisticGAM:
     if LogisticGAM is None:
         raise ModuleNotFoundError(
             "pygam is required for the NHL expected-goal GAM. Install it with "
@@ -347,6 +370,13 @@ def fit_expected_goal_gam(df: pd.DataFrame) -> LogisticGAM:
         + l(11)
         + l(12)
     )
+    params = {}
+    if lam is not None:
+        params["lam"] = lam
+    if max_iter is not None:
+        params["max_iter"] = max_iter
+    if params:
+        gam.set_params(**params)
     gam.fit(X, y)
     return gam
 

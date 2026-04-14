@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -14,8 +15,12 @@ APP_DIR = Path(__file__).resolve().parent
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
-from demo_content import SDI_DEFAULT_MIN_ATTEMPTS, SDI_SUMMARY_PATHS
-from app_utils import APP_BG, MUTED_TEXT, PANEL_BG, TEXT_COLOR, apply_theme
+from demo_content import SDI_DEFAULT_MIN_ATTEMPTS, SDI_FIGURE_SPECS, SDI_SUMMARY_PATHS
+from app_utils import MUTED_TEXT, apply_theme
+
+SCATTER_BG = "#F8F7F2"
+SCATTER_TEXT = "#1B1B1B"
+SCATTER_GRID = "rgba(0,0,0,0.08)"
 
 
 @st.cache_data(show_spinner=False)
@@ -27,8 +32,52 @@ def load_sdi_summary(path: Path) -> pd.DataFrame:
     return df
 
 
+def compute_residual_color_limits(
+    residuals: pd.Series,
+    *,
+    lower_floor: float,
+    upper_cap: float,
+    quantile: float,
+) -> tuple[float, float]:
+    numeric = pd.to_numeric(residuals, errors="coerce").dropna()
+    if numeric.empty:
+        return -0.05, 0.05
+    limit = float(np.nanpercentile(np.abs(numeric), quantile * 100))
+    limit = max(limit, lower_floor)
+    limit = min(limit, upper_cap)
+    return -limit, limit
+
+
+def get_sdi_chart_meta(sport: str) -> dict[str, str]:
+    return {
+        "NBA": {
+            "title": "NBA Shot Difficulty vs Actual Scoring Rate (2014-2024)",
+            "y_axis_title": "Actual FG%",
+        },
+        "NHL": {
+            "title": "NHL Shot Difficulty vs Actual Scoring Rate (2014-2024)",
+            "y_axis_title": "Actual Goal %",
+        },
+    }[sport]
+
+
 def build_sdi_scatter(df: pd.DataFrame, sport: str) -> go.Figure:
-    color_range = max(float(df["residual"].abs().max()), 0.01)
+    meta = get_sdi_chart_meta(sport)
+    if sport == "NHL":
+        color_min, color_max = compute_residual_color_limits(
+            df["residual"],
+            lower_floor=0.010,
+            upper_cap=0.08,
+            quantile=0.92,
+        )
+    else:
+        color_min, color_max = compute_residual_color_limits(
+            df["residual"],
+            lower_floor=0.015,
+            upper_cap=0.12,
+            quantile=0.98,
+        )
+
     fig = px.scatter(
         df,
         x="mean_sdi",
@@ -36,7 +85,7 @@ def build_sdi_scatter(df: pd.DataFrame, sport: str) -> go.Figure:
         size="attempts",
         color="residual",
         color_continuous_scale="RdYlGn",
-        range_color=[-color_range, color_range],
+        range_color=[color_min, color_max],
         custom_data=["player"],
         hover_name="player",
         hover_data={
@@ -49,24 +98,81 @@ def build_sdi_scatter(df: pd.DataFrame, sport: str) -> go.Figure:
         },
         size_max=22,
     )
-    fig.update_traces(marker=dict(line=dict(color="rgba(255,255,255,0.25)", width=1)))
+    fig.update_traces(marker=dict(line=dict(color="rgba(0,0,0,0.45)", width=1)))
+
+    valid_points = df[["mean_sdi", "actual_rate"]].apply(pd.to_numeric, errors="coerce").dropna()
+    x_values = valid_points["mean_sdi"]
+    y_values = valid_points["actual_rate"]
+    if len(valid_points) > 1 and x_values.nunique() > 1:
+        coeffs = np.polyfit(x_values, y_values, 1)
+        trend_x = np.linspace(float(x_values.min()), float(x_values.max()), 250)
+        trend_y = coeffs[0] * trend_x + coeffs[1]
+        fig.add_trace(
+            go.Scatter(
+                x=trend_x,
+                y=trend_y,
+                mode="lines",
+                line=dict(color="rgba(80,80,80,0.78)", dash="dash", width=3),
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
+
+    fig.add_vline(
+        x=float(x_values.median()),
+        line_dash="dash",
+        line_color="rgba(120,120,120,0.35)",
+        line_width=2,
+    )
+    fig.add_hline(
+        y=float(y_values.median()),
+        line_dash="dash",
+        line_color="rgba(120,120,120,0.35)",
+        line_width=2,
+    )
     fig.update_layout(
-        title=f"{sport} SDI vs Actual Scoring",
-        paper_bgcolor=APP_BG,
-        plot_bgcolor=PANEL_BG,
-        font=dict(color=TEXT_COLOR),
+        template="plotly_white",
+        title=dict(text=meta["title"], font=dict(color=SCATTER_TEXT)),
+        paper_bgcolor=SCATTER_BG,
+        plot_bgcolor=SCATTER_BG,
+        font=dict(color=SCATTER_TEXT),
         clickmode="event+select",
         margin=dict(l=40, r=20, t=60, b=50),
-        coloraxis_colorbar=dict(title="Residual"),
+        coloraxis_colorbar=dict(
+            title=dict(text="Residual (Actual - Expected)", font=dict(color=SCATTER_TEXT)),
+            tickfont=dict(color=SCATTER_TEXT),
+        ),
     )
-    fig.update_xaxes(title="Mean SDI", showgrid=True, gridcolor="rgba(255,255,255,0.08)")
+    fig.update_xaxes(
+        title="Average Shot Difficulty Index (SDI)",
+        showgrid=True,
+        gridcolor=SCATTER_GRID,
+        zeroline=False,
+        title_font=dict(color=SCATTER_TEXT),
+        tickfont=dict(color=SCATTER_TEXT),
+    )
     fig.update_yaxes(
-        title="Actual scoring rate",
+        title=meta["y_axis_title"],
         tickformat=".0%",
         showgrid=True,
-        gridcolor="rgba(255,255,255,0.08)",
+        gridcolor=SCATTER_GRID,
+        zeroline=False,
+        title_font=dict(color=SCATTER_TEXT),
+        tickfont=dict(color=SCATTER_TEXT),
     )
     return fig
+
+
+def render_poster_reference(sport: str) -> None:
+    spec = SDI_FIGURE_SPECS[sport]
+    figure_path = Path(spec["path"])
+    with st.container(border=True):
+        st.markdown("#### Final Poster Figure")
+        if not figure_path.exists():
+            st.warning(f"Missing poster SDI figure: {figure_path.name}")
+            return
+        st.image(str(figure_path), use_container_width=True)
+        st.caption(str(spec["caption"]))
 
 
 def render_player_card(player_row: pd.Series | None, sport: str) -> None:
@@ -94,6 +200,9 @@ def render_sport_tab(sport: str, df: pd.DataFrame, key_prefix: str) -> None:
     if df.empty:
         st.warning(f"No {sport} summary data found.")
         return
+
+    render_poster_reference(sport)
+    st.markdown("### Interactive Explorer")
 
     default_min = SDI_DEFAULT_MIN_ATTEMPTS[sport]
     control_cols = st.columns([1, 1.2])
@@ -123,8 +232,8 @@ def render_sport_tab(sport: str, df: pd.DataFrame, key_prefix: str) -> None:
 
     st.markdown(
         f'<div class="panel-copy" style="margin-top:-0.25rem;">'
-        f'Click a dot to inspect the {sport} player profile. Color shows residual '
-        f'(actual rate minus expected rate), and size reflects shot volume.'
+        f'Click a dot to inspect the {sport} player profile. The interactive view uses the same summary data as the poster figure, '
+        f'with poster-matched axis labels, residual color scaling, and reference lines.'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -136,6 +245,7 @@ def render_sport_tab(sport: str, df: pd.DataFrame, key_prefix: str) -> None:
             figure,
             use_container_width=True,
             config={"displayModeBar": False},
+            theme=None,
             on_select="rerun",
             selection_mode="points",
             key=f"{key_prefix}_scatter",

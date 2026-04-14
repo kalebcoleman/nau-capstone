@@ -1,0 +1,3 @@
+sport,model_family,target_label,factor_key,plot_type,x_value,fitted_effect,lower_ci,upper_ci,baseline_value,season_window,level_key,level_label
+NHL,LogisticGAM,Expected Goal,rebound,discrete_summary,0.0,0.0,,,,2014-2024,shotRebound,No
+NHL,LogisticGAM,Expected Goal,rebound,discrete_summary,1.0,0.5909682022207656,,,,2014-2024,shotRebound,Yes

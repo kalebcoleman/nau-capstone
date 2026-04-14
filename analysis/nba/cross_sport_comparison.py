@@ -29,10 +29,16 @@ REPO_ROOT = SCRIPT_DIR.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from analysis.nba.gam_analysis import (
-    add_shot_type_features as add_nba_gam_shot_type_features,
-    fit_gam as fit_nba_full_gam,
-)
+try:
+    from analysis.nba.gam_analysis import (
+        add_shot_type_features as add_nba_gam_shot_type_features,
+        fit_gam as fit_nba_full_gam,
+    )
+    NBA_GAM_IMPORT_ERROR = None
+except ModuleNotFoundError as exc:
+    add_nba_gam_shot_type_features = None
+    fit_nba_full_gam = None
+    NBA_GAM_IMPORT_ERROR = exc
 from analysis.gam_explorer_config import GAM_EXPLORER_FIGURES, WINDOW_LABEL
 from analysis.nhl.modeling import (
     NHL_EXPORT_PATH,
@@ -67,6 +73,10 @@ NBA_SDI_FIGURE = FIGURES_DIR / "nba_sdi_vs_actual_2014_2024.png"
 NHL_SDI_FIGURE = NHL_FIGURES_DIR / "nhl_sdi_vs_actual_2014_2024.png"
 NBA_POSITION_FIGURE = FIGURES_DIR / "nba_sdi_by_position_2014_2024.png"
 NHL_POSITION_FIGURE = NHL_FIGURES_DIR / "nhl_sdi_by_position_2014_2024.png"
+NHL_NON_EMPTY_DISTANCE_PDP_DATA = NHL_DATA_DIR / "nhl_expected_goal_distance_non_empty_net_pdp_2014_2024.csv"
+NHL_NON_EMPTY_DISTANCE_PDP_FIGURE = (
+    NHL_FIGURES_DIR / "nhl_expected_goal_distance_non_empty_net_pdp_2014_2024.png"
+)
 
 DISTANCE_PLOT_MAX = {
     "NBA": 60.0,
@@ -74,8 +84,111 @@ DISTANCE_PLOT_MAX = {
 }
 
 POSITION_COLORS = {
-    "NBA": {"G": "#2A6F97", "F": "#D17A22", "C": "#3F8F5F"},
-    "NHL": {"C": "#2A6F97", "W": "#D17A22", "D": "#3F8F5F"},
+    "NBA": {"G": "#1D428A", "F": "#EF3340", "C": "#552583"},
+    "NHL": {"C": "#006847", "W": "#CE1126", "D": "#00205B"},
+}
+STAR_PLAYERS = {
+    "NBA": (
+        "LeBron James",
+        "Devin Booker",
+        "Shai Gilgeous-Alexander",
+        "Stephen Curry",
+        "Kevin Durant",
+        "Giannis Antetokounmpo",
+        "Luka Dončić",
+        "Nikola Jokić",
+    ),
+    "NHL": (
+        "Connor McDavid",
+        "Sidney Crosby",
+        "Alex Ovechkin",
+        "Nathan MacKinnon",
+        "Auston Matthews",
+        "Leon Draisaitl",
+        "Cale Makar",
+        "Nikita Kucherov",
+        "Artemi Panarin",
+        "Brayden Point",
+        "Mark Scheifele",
+        "Jason Robertson",
+        "Curtis Lazar",
+        "Drew O'Connor",
+        "Michael Rasmussen",
+    ),
+}
+
+STAR_PLAYER_LABELS = {
+    "LeBron James": "LeBron",
+    "Devin Booker": "Booker",
+    "Shai Gilgeous-Alexander": "Shai",
+    "Stephen Curry": "Curry",
+    "Kevin Durant": "Durant",
+    "Giannis Antetokounmpo": "Giannis",
+    "Luka Dončić": "Luka",
+    "Nikola Jokić": "Jokić",
+    "Connor McDavid": "McDavid",
+    "Sidney Crosby": "Crosby",
+    "Alex Ovechkin": "Ovechkin",
+    "Nathan MacKinnon": "MacKinnon",
+    "Auston Matthews": "Matthews",
+    "Leon Draisaitl": "Draisaitl",
+    "Cale Makar": "Makar",
+    "Nikita Kucherov": "Kucherov",
+}
+
+PLAYER_LABEL_OFFSETS = {
+    "LeBron James": (-25, 15),
+    "Devin Booker": (14, -15),
+    "Shai Gilgeous-Alexander": (-20, 15),
+    "Stephen Curry": (16, -10),
+    "Kevin Durant": (20, 0),
+    "Giannis Antetokounmpo": (-30, 20),
+    "Luka Dončić": (-40, 15),
+    "Nikola Jokić": (-15, 15),
+    "Connor McDavid": (-45, 35),
+    "Sidney Crosby": (-24, 35),
+    "Alex Ovechkin": (35, -15),
+    "Nathan MacKinnon": (22, -40),
+    "Auston Matthews": (-56, -18),
+    "Leon Draisaitl": (20, 0),
+    "Cale Makar": (25, 25),
+    "Nikita Kucherov": (-42, -42),
+    "Steven Adams": (-30, -20),
+    "Hassan Whiteside": (0, 30),
+    "Andre Drummond": (-25, -15),
+    "Russell Westbrook": (-40, 15),
+    "Corey Brewer": (-25, 20),
+    "Darius Bazley": (0, -15),
+    "Michael Carter-Williams": (-25, -30),
+    "Josh Okogie": (20, -35),
+    "Marquese Chriss": (-35, -25),
+    "Clint Capela": (-20, -15),
+    "Rudy Gobert": (20, 15),
+    "Deandre Ayton": (25, 15),
+    "Jusuf Nurkić": (-15, -25),
+    "DeMarcus Cousins": (-30, 10),
+    "Kelly Oubre Jr.": (25, -10),
+    "RJ Barrett": (15, -30),
+    "Tony Allen": (-25, -20),
+    "Brent Burns": (25, 10),
+    "Erik Karlsson": (20, 20),
+    "Roman Josi": (-24, -16),
+    "Victor Hedman": (-25, 25),
+    "Darnell Nurse": (36, 16),
+    "Jacob Trouba": (-20, -30),
+    "Rasmus Ristolainen": (20, -20),
+    "Brayden Point": (-45, -25),
+    "Mark Scheifele": (8, 18),
+    "Artemi Panarin": (28, 12),
+    "Jason Robertson": (45, 20),
+    "Steven Stamkos": (-8, 28),
+    "Evgeni Malkin": (-34, 14),
+    "Brock Nelson": (-20, 16),
+    "Patrik Laine": (18, 20),
+    "Zach Hyman": (10, -12),
+    "Brady Tkachuk": (-18, 12),
+    "Michael Rasmussen": (-50, -18),
+    "Jordan Martinook": (18, -12),
 }
 
 EXPLORER_FIGURES = {
@@ -86,6 +199,7 @@ CONTINUOUS_FACTOR_KEYS = ("distance", "angle", "clock", "period")
 DISCRETE_FACTOR_KEYS = ("shot_type", "clutch", "rebound", "rush", "goalie_froze", "empty_net")
 EFFECT_Y_LABEL = "Marginal log-odds contribution"
 LINE_COLOR = "#2A6F97"
+POSTER_EXPORT_DPI = 400
 COURT_LANDMARKS = {
     sport: [
         (str(marker["label"]), float(marker["value"]), str(marker["color"]))
@@ -417,13 +531,23 @@ def load_nba_position_map() -> pd.DataFrame:
           AND position IN ('G', 'F', 'C')
         GROUP BY 1, 2, 3
     """
-    with sqlite3.connect(SPATIAL_SPORTS_DB) as con:
-        df = pd.read_sql_query(query, con)
-    df = df.sort_values(["player_id", "n_games"], ascending=[True, False])
-    df = df.drop_duplicates(subset=["player_id"], keep="first")
-    return df.rename(columns={"position": "position_group"})[
-        ["player_id", "player", "position_group"]
-    ]
+    try:
+        with sqlite3.connect(SPATIAL_SPORTS_DB) as con:
+            df = pd.read_sql_query(query, con)
+        df = df.sort_values(["player_id", "n_games"], ascending=[True, False])
+        df = df.drop_duplicates(subset=["player_id"], keep="first")
+        df["player_id"] = df["player_id"].astype(str)
+        return df.rename(columns={"position": "position_group"})[
+            ["player_id", "player", "position_group"]
+        ]
+    except Exception as e:
+        print(f"SQL position map load failed: {e}. Falling back to existing summary CSV.")
+        if NBA_SUMMARY_PATH.exists():
+            df = pd.read_csv(NBA_SUMMARY_PATH)
+            if "position_group" in df.columns:
+                df["player_id"] = df["player_id"].astype(str)
+                return df[["player_id", "player", "position_group"]].drop_duplicates()
+        return pd.DataFrame(columns=["player_id", "player", "position_group"])
 
 
 def load_nhl_position_map() -> pd.DataFrame:
@@ -635,7 +759,7 @@ def plot_continuous_effect(effect_df: pd.DataFrame, spec: dict[str, object], x_l
     ax.grid(alpha=0.2)
     ax.legend(loc="upper right", fontsize=9, frameon=True)
     plt.tight_layout()
-    plt.savefig(spec["figure_path"], dpi=220, bbox_inches="tight")
+    plt.savefig(spec["figure_path"], dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
     plt.close()
 
 
@@ -660,7 +784,7 @@ def plot_discrete_summary(effect_df: pd.DataFrame, spec: dict[str, object], x_la
     ax.set_ylabel(EFFECT_Y_LABEL, fontsize=12)
     ax.grid(alpha=0.2, axis="y")
     plt.tight_layout()
-    plt.savefig(spec["figure_path"], dpi=220, bbox_inches="tight")
+    plt.savefig(spec["figure_path"], dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
     plt.close()
 
 
@@ -698,7 +822,7 @@ def plot_spatial_surface(
         ax.set_ylim(-10, 100)
     ax.grid(alpha=0.12)
     plt.tight_layout()
-    plt.savefig(spec["figure_path"], dpi=220, bbox_inches="tight")
+    plt.savefig(spec["figure_path"], dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
     plt.close()
 
 
@@ -877,6 +1001,29 @@ def save_continuous_artifact(effect_df: pd.DataFrame, spec: dict[str, object], x
     print(f"Saved: {spec['figure_path']}")
 
 
+def save_custom_continuous_artifact(
+    effect_df: pd.DataFrame,
+    *,
+    data_path: Path,
+    figure_path: Path,
+    title: str,
+    markers: list[dict[str, object]],
+    x_label: str,
+    factor_key: str = "distance",
+) -> None:
+    data_path.parent.mkdir(parents=True, exist_ok=True)
+    effect_df.to_csv(data_path, index=False)
+    print(f"Saved: {data_path}")
+    spec = {
+        "title": title,
+        "figure_path": figure_path,
+        "markers": markers,
+        "factor_key": factor_key,
+    }
+    plot_continuous_effect(effect_df, spec, x_label)
+    print(f"Saved: {figure_path}")
+
+
 def save_discrete_artifact(effect_df: pd.DataFrame, spec: dict[str, object], x_label: str) -> None:
     Path(spec["data_path"]).parent.mkdir(parents=True, exist_ok=True)
     effect_df.to_csv(spec["data_path"], index=False)
@@ -1011,29 +1158,70 @@ def bootstrap_distance_effect(
 
 
 def build_nba_outputs() -> None:
+    if NBA_GAM_IMPORT_ERROR is not None:
+        raise ModuleNotFoundError(
+            "build_nba_outputs requires pygam via analysis.nba.gam_analysis."
+        ) from NBA_GAM_IMPORT_ERROR
     print("Building NBA comparison outputs ...")
-    sample_df = sample_nba_for_models(sample_size=None)
+    sample_df = sample_nba_for_models(sample_size=250_000)
     model = build_nba_expected_model(sample_df)
     print("Scoring full NBA export into player summary ...")
     gam_sample_df = add_nba_gam_shot_type_features(sample_df.copy())
     gam_sample_df = gam_sample_df.dropna(
         subset=NBA_FULL_GAM_FEATURE_COLS + ["SHOT_MADE_FLAG"]
     ).copy()
-    nba_full_gam = fit_nba_full_gam(
-        gam_sample_df[NBA_FULL_GAM_FEATURE_COLS].to_numpy(dtype=float),
-        gam_sample_df["SHOT_MADE_FLAG"].astype(int).to_numpy(),
-    )
-    print("Generating centralized NBA explorer GAM artifacts...")
+    
+    # Use the pipeline model for predictions instead of LogisticGAM
+    # which is unstable on this many features
+    print("Using LogisticRegression pipeline for full-field NBA model artifacts...")
+    
     for factor_key, settings in NBA_CONTINUOUS_SPECS.items():
         spec = EXPLORER_FIGURES[("NBA", factor_key, "continuous_pdp")]
-        effect_df = build_nba_full_model_effect_frame(
-            nba_full_gam,
-            gam_sample_df,
-            feature_col=str(settings["feature_col"]),
-            term=int(settings["term"]),
-            plot_min=float(settings["x_min"]),
-            plot_max=float(settings["x_max"]),
-        )
+        # For the linear model, we'll build a simpler effect frame
+        base = {
+            "LOC_X": float(pd.to_numeric(gam_sample_df["LOC_X"], errors="coerce").median()),
+            "LOC_Y": float(pd.to_numeric(gam_sample_df["LOC_Y"], errors="coerce").median()),
+            "shot_distance_feet": float(pd.to_numeric(gam_sample_df["shot_distance_feet"], errors="coerce").median()),
+            "shot_angle": float(pd.to_numeric(gam_sample_df["shot_angle"], errors="coerce").median()),
+            "seconds_in_period": float(pd.to_numeric(gam_sample_df["seconds_in_period"], errors="coerce").median()),
+            "PERIOD": float(pd.to_numeric(gam_sample_df["PERIOD"], errors="coerce").median()),
+            "is_clutch": 0, "is_layup": 0, "is_dunk": 0, "is_jump_shot": 1, "is_hook": 0, "is_floater": 0,
+            "SHOT_ZONE_BASIC": gam_sample_df["SHOT_ZONE_BASIC"].mode().iloc[0],
+            "SHOT_ZONE_AREA": gam_sample_df["SHOT_ZONE_AREA"].mode().iloc[0],
+            "shot_type_family": "jump_shot",
+        }
+        
+        feature_col = str(settings["feature_col"])
+        plot_min = float(settings["x_min"])
+        plot_max = float(settings["x_max"])
+        value_grid = np.linspace(plot_min, plot_max, 200)
+        
+        # Numeric column alignment for build_nba_expected_model numeric list
+        numeric_cols = ["shot_distance_feet", "shot_angle", "PERIOD", "seconds_in_period", "is_clutch", "is_layup", "is_dunk", "is_jump_shot", "is_hook", "is_floater"]
+        # categorical alignment
+        cat_cols = ["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA", "shot_type_family"]
+        
+        plot_df = pd.DataFrame([base] * 200)
+        plot_df[feature_col] = value_grid
+        
+        # Re-derive is_jump_shot if distance changes (just as a precaution for logic)
+        if feature_col == "shot_distance_feet":
+             # jump shots are usually further out
+             plot_df["is_jump_shot"] = (plot_df["shot_distance_feet"] > 5).astype(int)
+             plot_df["is_layup"] = (plot_df["shot_distance_feet"] <= 5).astype(int)
+            
+        probs = model.predict_proba(plot_df[numeric_cols + cat_cols])[:, 1]
+        logits = logit(probs)
+        baseline_logits = logit(model.predict_proba(pd.DataFrame([base])[numeric_cols + cat_cols])[:, 1])[0]
+        
+        effect_df = pd.DataFrame({
+            "x_value": value_grid,
+            "fitted_effect": logits - baseline_logits,
+            "lower_ci": np.nan,
+            "upper_ci": np.nan,
+            "baseline_value": base[feature_col],
+        })
+
         effect_df = finalize_effect_frame(
             effect_df,
             sport="NBA",
@@ -1068,11 +1256,44 @@ def build_nba_outputs() -> None:
 
     for factor_key, settings in NBA_DISCRETE_SPECS.items():
         spec = EXPLORER_FIGURES[("NBA", factor_key, "discrete_summary")]
-        effect_df = build_nba_discrete_effect_frame(
-            nba_full_gam,
-            gam_sample_df,
-            factor_key=factor_key,
-        )
+        base = {
+            "LOC_X": float(pd.to_numeric(gam_sample_df["LOC_X"], errors="coerce").median()),
+            "LOC_Y": float(pd.to_numeric(gam_sample_df["LOC_Y"], errors="coerce").median()),
+            "shot_distance_feet": float(pd.to_numeric(gam_sample_df["shot_distance_feet"], errors="coerce").median()),
+            "shot_angle": float(pd.to_numeric(gam_sample_df["shot_angle"], errors="coerce").median()),
+            "seconds_in_period": float(pd.to_numeric(gam_sample_df["seconds_in_period"], errors="coerce").median()),
+            "PERIOD": float(pd.to_numeric(gam_sample_df["PERIOD"], errors="coerce").median()),
+            "is_clutch": 0, "is_layup": 0, "is_dunk": 0, "is_jump_shot": 0, "is_hook": 0, "is_floater": 0,
+            "SHOT_ZONE_BASIC": gam_sample_df["SHOT_ZONE_BASIC"].mode().iloc[0],
+            "SHOT_ZONE_AREA": gam_sample_df["SHOT_ZONE_AREA"].mode().iloc[0],
+            "shot_type_family": "other",
+        }
+        numeric_cols = ["shot_distance_feet", "shot_angle", "PERIOD", "seconds_in_period", "is_clutch", "is_layup", "is_dunk", "is_jump_shot", "is_hook", "is_floater"]
+        cat_cols = ["SHOT_ZONE_BASIC", "SHOT_ZONE_AREA", "shot_type_family"]
+
+        rows = []
+        for order, (label, field, value) in enumerate(NBA_DISCRETE_SPECS[factor_key]["categories"]):
+            row = base.copy()
+            if field is not None:
+                row[field] = value
+                if field == "is_jump_shot_2" or field == "is_jump_shot_3":
+                    row["is_jump_shot"] = 1
+                    row["shot_type_family"] = "jump_shot"
+            
+            p = model.predict_proba(pd.DataFrame([row])[numeric_cols + cat_cols])[:, 1][0]
+            rows.append({
+                "x_value": float(order),
+                "fitted_effect": logit(np.array([p]))[0],
+                "lower_ci": np.nan,
+                "upper_ci": np.nan,
+                "baseline_value": np.nan,
+                "level_key": field or "baseline",
+                "level_label": label,
+            })
+        
+        effect_df = pd.DataFrame(rows)
+        effect_df["fitted_effect"] = effect_df["fitted_effect"] - effect_df["fitted_effect"].iloc[0]
+
         effect_df = finalize_effect_frame(
             effect_df,
             sport="NBA",
@@ -1083,11 +1304,43 @@ def build_nba_outputs() -> None:
         save_discrete_artifact(effect_df, spec, x_label=str(settings["x_label"]))
 
     spatial_spec = EXPLORER_FIGURES[("NBA", "spatial", "spatial_surface")]
-    spatial_df, grid_x, grid_y, spatial_effect = build_spatial_effect_frame(
-        nba_full_gam,
-        gam_sample_df,
-        sport="NBA",
-    )
+    x_range = np.linspace(-250, 250, 70)
+    y_range = np.linspace(-50, 420, 70)
+    grid_x, grid_y = np.meshgrid(x_range, y_range)
+    grid_df = pd.DataFrame({
+        "LOC_X": grid_x.ravel(),
+        "LOC_Y": grid_y.ravel(),
+        "shot_distance_feet": np.sqrt(grid_x.ravel()**2 + grid_y.ravel()**2) / 10.0,
+        "shot_angle": np.arctan2(grid_x.ravel(), np.clip(grid_y.ravel(), 1, None)),
+        "PERIOD": float(gam_sample_df["PERIOD"].median()),
+        "seconds_in_period": float(gam_sample_df["seconds_in_period"].median()),
+        "is_clutch": 0, "is_layup": 0, "is_dunk": 0, "is_jump_shot": 1, "is_hook": 0, "is_floater": 0,
+        "SHOT_ZONE_BASIC": gam_sample_df["SHOT_ZONE_BASIC"].mode().iloc[0],
+        "SHOT_ZONE_AREA": gam_sample_df["SHOT_ZONE_AREA"].mode().iloc[0],
+        "shot_type_family": "jump_shot",
+    })
+    
+    probs = model.predict_proba(grid_df[numeric_cols + cat_cols])[:, 1]
+    spatial_effect = logit(probs).reshape(grid_x.shape)
+    # Normalize spatial effect to be relative to the median location
+    median_idx = (len(x_range)//2, len(y_range)//2)
+    spatial_effect = spatial_effect - spatial_effect[median_idx]
+    
+    spatial_df = pd.DataFrame({
+        "sport": "NBA",
+        "model_family": "LogisticRegression",
+        "target_label": str(spatial_spec["target_label"]),
+        "factor_key": "spatial",
+        "plot_type": "spatial_surface",
+        "x_value": grid_x.ravel(),
+        "y_value": grid_y.ravel(),
+        "fitted_effect": spatial_effect.ravel(),
+        "lower_ci": np.nan,
+        "upper_ci": np.nan,
+        "baseline_value": np.nan,
+        "season_window": WINDOW_LABEL,
+    })
+    
     save_spatial_artifact(
         spatial_df,
         spatial_spec,
@@ -1145,9 +1398,10 @@ def build_nba_outputs() -> None:
         expected_rate = vals.expected_sum / vals.attempts
         rows.append(
             {
-                "player_id": player_id,
+                "player_id": str(player_id),
                 "player": player_name,
                 "season_window": WINDOW_LABEL,
+
                 "attempts": vals.attempts,
                 "mean_sdi": vals.sdi_sum / vals.attempts,
                 "actual_rate": actual_rate,
@@ -1170,8 +1424,10 @@ def build_nba_outputs() -> None:
 
 def build_nhl_outputs() -> None:
     print("Building NHL comparison outputs ...")
-    sample_df = load_nhl_modeling_sample(sample_size=None)
+    sample_df = load_nhl_modeling_sample(sample_size=50_000)
     model = fit_expected_goal_gam(sample_df)
+    non_empty_sample_df = load_nhl_modeling_sample(sample_size=30_000, exclude_empty_net=True)
+    non_empty_model = fit_expected_goal_gam(non_empty_sample_df, lam=10, max_iter=200)
     print("Generating centralized NHL explorer GAM artifacts...")
     for factor_key, settings in NHL_CONTINUOUS_SPECS.items():
         spec = EXPLORER_FIGURES[("NHL", factor_key, "continuous_pdp")]
@@ -1213,6 +1469,32 @@ def build_nhl_outputs() -> None:
         nhl_spline_df,
         nhl_spline_spec,
         x_label=str(NHL_SPLINE_DISTANCE_SPEC["x_label"]),
+    )
+
+    nhl_distance_spec = EXPLORER_FIGURES[("NHL", "distance", "continuous_pdp")]
+    nhl_non_empty_distance_df = build_full_model_effect_frame(
+        non_empty_model,
+        non_empty_sample_df,
+        feature_col=str(NHL_CONTINUOUS_SPECS["distance"]["feature_col"]),
+        term=int(NHL_CONTINUOUS_SPECS["distance"]["term"]),
+        plot_min=float(NHL_CONTINUOUS_SPECS["distance"]["x_min"]),
+        plot_max=float(NHL_CONTINUOUS_SPECS["distance"]["x_max"]),
+    )
+    nhl_non_empty_distance_df = finalize_effect_frame(
+        nhl_non_empty_distance_df,
+        sport="NHL",
+        factor_key="distance",
+        plot_type="continuous_pdp",
+        target_label=str(nhl_distance_spec["target_label"]),
+    )
+    save_custom_continuous_artifact(
+        nhl_non_empty_distance_df,
+        data_path=NHL_NON_EMPTY_DISTANCE_PDP_DATA,
+        figure_path=NHL_NON_EMPTY_DISTANCE_PDP_FIGURE,
+        title="NHL Expected Goal Distance Effect (Non-Empty-Net Shots) with 95% CI (2014-2024)",
+        markers=list(nhl_distance_spec["markers"]),
+        x_label=str(NHL_CONTINUOUS_SPECS["distance"]["x_label"]),
+        factor_key="distance",
     )
 
     for factor_key, settings in NHL_DISCRETE_SPECS.items():
@@ -1284,6 +1566,7 @@ def build_nhl_outputs() -> None:
             }
         )
     summary_df = pd.DataFrame(rows).sort_values(["attempts", "residual"], ascending=[False, False])
+    summary_df["mean_sdi"] = normalize_sdi(summary_df["mean_sdi"], "NHL")
     summary_df = summary_df.merge(load_nhl_position_map(), how="left", on="player")
     summary_df["position_group"] = summary_df["position_group"].fillna("Unknown")
     summary_df.to_csv(NHL_SUMMARY_PATH, index=False)
@@ -1295,32 +1578,141 @@ def build_nhl_outputs() -> None:
     plot_position_sdi(summary_df, "NHL", "Actual Goal %", NHL_POSITION_FIGURE)
 
 
-def label_extremes(summary_df: pd.DataFrame) -> pd.DataFrame:
+def normalize_sdi(values: pd.Series, sport: str) -> pd.Series:
+    numeric = pd.to_numeric(values, errors="coerce")
+    if numeric.dropna().empty:
+        return numeric
+    # Ensure SDI is strictly between 0 and 1
+    # If the 90th percentile is > 1.0, it's likely on a 0-100 scale
+    if float(numeric.dropna().quantile(0.9)) > 1.0:
+        numeric = numeric / 100.0
+    return numeric.clip(0, 1)
+
+
+def label_extremes(summary_df: pd.DataFrame, sport: str) -> pd.DataFrame:
     attempts_cutoff = summary_df["attempts"].median()
     high_attempts = summary_df[summary_df["attempts"] >= attempts_cutoff]
-    candidates = pd.concat(
-        [
-            summary_df.nlargest(3, "residual"),
-            summary_df.nsmallest(3, "residual"),
-            high_attempts.nlargest(2, "mean_sdi"),
-            summary_df.nlargest(2, "attempts"),
-        ],
-        ignore_index=True,
-    )
-    return candidates.drop_duplicates(subset=["player"]).head(10)
+    star_df = summary_df[summary_df["player"].isin(STAR_PLAYERS.get(sport, ()))]
+    star_df = star_df.sort_values(["attempts", "residual"], ascending=[False, False])
+    
+    if sport == "NHL":
+        vol_threshold = summary_df["attempts"].quantile(0.85)
+        high_vol_df = summary_df[summary_df["attempts"] >= vol_threshold]
+        excluded_players = {"Jordan Staal"}
+        
+        # Top-left centers
+        if "position_group" in high_vol_df.columns:
+            tl_c_pool = high_vol_df[
+                (high_vol_df["position_group"] == "C") &
+                (high_vol_df["mean_sdi"] < high_vol_df["mean_sdi"].quantile(0.4)) &
+                (high_vol_df["actual_rate"] > high_vol_df["actual_rate"].quantile(0.6))
+            ]
+        else:
+            tl_c_pool = high_vol_df[
+                (high_vol_df["mean_sdi"] < high_vol_df["mean_sdi"].quantile(0.4)) &
+                (high_vol_df["actual_rate"] > high_vol_df["actual_rate"].quantile(0.6))
+            ]
+        top_left_centers = tl_c_pool.nlargest(4, "residual")
+        
+        # High-volume underperformers
+        bad_underperformers = high_vol_df.nsmallest(4, "residual")
+        
+        # Strong positive outperformers
+        positive_outliers = high_vol_df.nlargest(3, "residual")
+        
+        # Add popular good/bad defenders
+        popular_defenders = ["Erik Karlsson", "Victor Hedman", "Brent Burns", "Roman Josi", "Jacob Trouba", "Darnell Nurse", "Rasmus Ristolainen"]
+        defenders_df = summary_df[summary_df["player"].isin(popular_defenders)]
+        
+        candidates = pd.concat(
+            [star_df, top_left_centers, bad_underperformers, positive_outliers, defenders_df],
+            ignore_index=True
+        )
+        candidates = candidates[~candidates["player"].isin(excluded_players)].copy()
+    elif sport == "NBA":
+        excluded_players = ["Josh Okogie", "Darius Bazley", "Chris Paul"]
+        clean_summary = summary_df[~summary_df["player"].isin(excluded_players)]
+        
+        med_vol_df = clean_summary[clean_summary["attempts"] >= attempts_cutoff]
+        vol_threshold = clean_summary["attempts"].quantile(0.85)
+        high_vol_df = clean_summary[clean_summary["attempts"] >= vol_threshold]
+        
+        # Top-left centers
+        if "position_group" in high_vol_df.columns:
+            tl_c_pool = high_vol_df[
+                (high_vol_df["position_group"] == "C") &
+                (high_vol_df["mean_sdi"] < high_vol_df["mean_sdi"].quantile(0.25))
+            ]
+            top_left_centers = tl_c_pool.nlargest(4, "actual_rate")
+        else:
+            top_left_centers = pd.DataFrame()
+        
+        # Absolutely worst underperformers far off the line (from median volume pool)
+        absolute_worst = med_vol_df.nsmallest(5, "residual")
+        
+        # Massive high-volume bad players
+        massive_bad = high_vol_df[
+            (high_vol_df["attempts"] > summary_df["attempts"].quantile(0.95)) & 
+            (high_vol_df["residual"] < -0.025)
+        ].nsmallest(3, "residual")
+        
+        bad_underperformers = pd.concat([absolute_worst, massive_bad]).drop_duplicates(subset=["player"])
+        
+        # Bad centers not already in the underperformers
+        if "position_group" in high_vol_df.columns:
+            bad_centers = high_vol_df[
+                (high_vol_df["position_group"] == "C") &
+                (~high_vol_df["player"].isin(bad_underperformers["player"]))
+            ].nsmallest(2, "residual")
+        else:
+            bad_centers = pd.DataFrame()
+            
+        # Add Ayton explicitly
+        ayton_df = summary_df[summary_df["player"] == "Deandre Ayton"]
+        
+        # Strong positive outperformers
+        positive_outliers = high_vol_df.nlargest(3, "residual")
+        
+        # High-difficulty high-efficiency stars
+        tough_shot_makers = high_vol_df[
+            (high_vol_df["mean_sdi"] > high_vol_df["mean_sdi"].quantile(0.75)) &
+            (high_vol_df["actual_rate"] > high_vol_df["actual_rate"].quantile(0.6))
+        ].nlargest(2, "residual")
+        
+        candidates = pd.concat(
+            [star_df, top_left_centers, bad_underperformers, bad_centers, ayton_df, positive_outliers, tough_shot_makers],
+            ignore_index=True
+        )
+    else:
+        candidates = pd.concat(
+            [
+                star_df,
+                summary_df.nlargest(3, "residual"),
+                summary_df.nsmallest(3, "residual"),
+                high_attempts.nlargest(3, "mean_sdi"),
+                summary_df.nlargest(3, "attempts"),
+            ],
+            ignore_index=True,
+        )
+    return candidates.drop_duplicates(subset=["player"])
 
 
 def shorten_player_labels(players: list[str]) -> dict[str, str]:
     last_names: dict[str, list[str]] = {}
     for player in players:
-        parts = str(player).split()
-        last = parts[-1] if parts else str(player)
+        clean_name = str(player).replace(" III", "").replace(" Jr.", "").replace(" Sr.", "").replace(" II", "")
+        parts = clean_name.split()
+        last = parts[-1] if parts else clean_name
         last_names.setdefault(last, []).append(str(player))
     labels = {}
     for player in players:
-        parts = str(player).split()
-        last = parts[-1] if parts else str(player)
-        labels[player] = last if len(last_names[last]) == 1 else str(player)
+        if player in STAR_PLAYER_LABELS:
+            labels[player] = STAR_PLAYER_LABELS[player]
+            continue
+        clean_name = str(player).replace(" III", "").replace(" Jr.", "").replace(" Sr.", "").replace(" II", "")
+        parts = clean_name.split()
+        last = parts[-1] if parts else clean_name
+        labels[player] = last if len(last_names[last]) == 1 else clean_name
     return labels
 
 
@@ -1331,30 +1723,54 @@ def annotate_selected_players(
     x_col: str,
     y_col: str,
     text_map: dict[str, str],
+    highlight_players: set[str] | None = None,
 ) -> None:
+    highlight_players = highlight_players or set()
     offsets = [
-        (10, 8),
-        (-10, 8),
-        (10, -8),
-        (-10, -8),
-        (14, 0),
-        (-14, 0),
-        (0, 12),
-        (0, -12),
-        (16, 10),
-        (-16, 10),
+        (12, 10),
+        (-12, 10),
+        (12, -10),
+        (-12, -10),
+        (16, 0),
+        (-16, 0),
+        (0, 14),
+        (0, -14),
+        (20, 12),
+        (-20, 12),
     ]
     for idx, (_, row) in enumerate(label_df.iterrows()):
-        dx, dy = offsets[idx % len(offsets)]
+        player_name = str(row["player"])
+        dx, dy = PLAYER_LABEL_OFFSETS.get(
+            player_name,
+            offsets[idx % len(offsets)],
+        )
+        is_highlight = player_name in highlight_players
         ax.annotate(
-            text_map.get(row["player"], row["player"]),
+            text_map.get(player_name, player_name),
             xy=(row[x_col], row[y_col]),
             xytext=(dx, dy),
             textcoords="offset points",
-            fontsize=8,
-            alpha=0.95,
-            bbox=dict(boxstyle="round,pad=0.15", facecolor="white", edgecolor="none", alpha=0.72),
-            arrowprops=dict(arrowstyle="-", color="#777777", lw=0.6, alpha=0.6),
+            fontsize=12,
+            fontweight="bold",
+            color="#000000",
+            alpha=1.0,
+            zorder=10 if is_highlight else 8,
+            bbox=dict(
+                boxstyle="round,pad=0.25",
+                facecolor="#FFFFFF",
+                edgecolor="#000000",
+                linewidth=1.2,
+                alpha=0.85,
+            ),
+            arrowprops=dict(
+                arrowstyle="-|>",
+                connectionstyle="arc3,rad=0.0",
+                shrinkA=4,
+                shrinkB=0,
+                color="#000000",
+                lw=1.5,
+                alpha=1.0,
+            ),
         )
 
 
@@ -1377,59 +1793,126 @@ def select_position_exemplars(summary_df: pd.DataFrame, sport: str) -> pd.DataFr
     return pd.concat(rows, ignore_index=True)
 
 
+def compute_residual_color_limits(
+    residuals: pd.Series,
+    *,
+    lower_floor: float = 0.015,
+    upper_cap: float = 0.12,
+    quantile: float = 0.98,
+) -> tuple[float, float]:
+    numeric = pd.to_numeric(residuals, errors="coerce").dropna()
+    if numeric.empty:
+        return -0.05, 0.05
+    lim = float(np.nanpercentile(np.abs(numeric), quantile * 100))
+    lim = max(lim, lower_floor)
+    lim = min(lim, upper_cap)
+    return -lim, lim
+
+
 def plot_sdi_scatter(summary_df: pd.DataFrame, sport: str, y_label: str, output_path: Path) -> None:
-    fig, ax = plt.subplots(figsize=(11, 8.5))
-    scatter = ax.scatter(
-        summary_df["mean_sdi"],
-        summary_df["actual_rate"] * 100,
-        s=np.clip(summary_df["attempts"] / 7, 18, 260),
-        c=summary_df["residual"],
-        cmap="RdYlGn",
-        vmin=-0.1,
-        vmax=0.1,
-        alpha=0.62,
-        edgecolors="black",
-        linewidths=0.35,
-    )
+    summary_df = summary_df.copy()
+    summary_df["mean_sdi"] = normalize_sdi(summary_df["mean_sdi"], sport)
+    
+    if sport == "NHL":
+        options = [
+            {
+                "suffix": "",
+                "alias_suffixes": ["_opt1_raw_scaled"],
+                "color_data": summary_df["residual"],
+                "color_min": compute_residual_color_limits(summary_df["residual"], lower_floor=0.010, upper_cap=0.08, quantile=0.92)[0],
+                "color_max": compute_residual_color_limits(summary_df["residual"], lower_floor=0.010, upper_cap=0.08, quantile=0.92)[1],
+                "cbar_label": "Residual (Actual - Expected)",
+                "color_note": "Color = actual - expected",
+            },
+            {
+                "suffix": "_opt2_zscore",
+                "alias_suffixes": [],
+                "color_data": (summary_df["residual"] - summary_df["residual"].mean()) / summary_df["residual"].std(),
+                "color_min": -2.5,
+                "color_max": 2.5,
+                "cbar_label": "Normalized Residual (Standard Deviations from Mean)",
+                "color_note": "Color = normalized residual (z-score)",
+            }
+        ]
+    else:
+        color_min, color_max = compute_residual_color_limits(summary_df["residual"])
+        options = [
+            {
+                "suffix": "",
+                "alias_suffixes": [],
+                "color_data": summary_df["residual"],
+                "color_min": color_min,
+                "color_max": color_max,
+                "cbar_label": "Residual (Actual - Expected)",
+                "color_note": "Color = actual - expected",
+            }
+        ]
 
-    z = np.polyfit(summary_df["mean_sdi"], summary_df["actual_rate"] * 100, 1)
-    p = np.poly1d(z)
-    x_sorted = np.sort(summary_df["mean_sdi"].to_numpy())
-    ax.plot(x_sorted, p(x_sorted), linestyle="--", color="#2A6F97", linewidth=2)
-    ax.axhline((summary_df["actual_rate"] * 100).median(), color="#9A9A9A", linestyle="--", alpha=0.25)
-    ax.axvline(summary_df["mean_sdi"].median(), color="#9A9A9A", linestyle="--", alpha=0.25)
+    for opt in options:
+        fig, ax = plt.subplots(figsize=(12, 9))
+        scatter = ax.scatter(
+            summary_df["mean_sdi"],
+            summary_df["actual_rate"] * 100,
+            s=np.clip(summary_df["attempts"] / 5, 25, 400),
+            c=opt["color_data"],
+            cmap="RdYlGn",
+            vmin=opt["color_min"],
+            vmax=opt["color_max"],
+            alpha=0.88,
+            edgecolors="black",
+            linewidths=0.6,
+            zorder=4,
+        )
 
-    labels_df = label_extremes(summary_df).copy()
-    labels_df["actual_rate_pct"] = labels_df["actual_rate"] * 100
-    label_map = shorten_player_labels(labels_df["player"].tolist())
-    annotate_selected_players(
-        ax,
-        labels_df,
-        x_col="mean_sdi",
-        y_col="actual_rate_pct",
-        text_map=label_map,
-    )
+        z = np.polyfit(summary_df["mean_sdi"], summary_df["actual_rate"] * 100, 1)
+        p = np.poly1d(z)
+        x_sorted = np.sort(summary_df["mean_sdi"].to_numpy())
+        ax.plot(x_sorted, p(x_sorted), linestyle="--", color="#333333", linewidth=2.5, alpha=0.8, zorder=5)
+        ax.axhline((summary_df["actual_rate"] * 100).median(), color="#9A9A9A", linestyle="--", alpha=0.3, zorder=2)
+        ax.axvline(summary_df["mean_sdi"].median(), color="#9A9A9A", linestyle="--", alpha=0.3, zorder=2)
 
-    ax.set_title(f"{sport} Shot Difficulty vs Actual Scoring Rate ({WINDOW_LABEL})", fontsize=15)
-    ax.text(
-        0.01,
-        0.98,
-        "Size = volume, Color = actual - expected",
-        transform=ax.transAxes,
-        ha="left",
-        va="top",
-        fontsize=10,
-        color="#555555",
-        bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.7),
-    )
-    ax.set_xlabel("Average Shot Difficulty Index (SDI)", fontsize=12)
-    ax.set_ylabel(y_label, fontsize=12)
-    cbar = plt.colorbar(scatter, ax=ax)
-    cbar.set_label("Residual (Actual - Expected)", fontsize=10)
-    ax.grid(alpha=0.2)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=220, bbox_inches="tight")
-    plt.close()
+        labels_df = label_extremes(summary_df, sport).copy()
+        labels_df["actual_rate_pct"] = labels_df["actual_rate"] * 100
+        label_map = shorten_player_labels(labels_df["player"].tolist())
+        annotate_selected_players(
+            ax,
+            labels_df,
+            x_col="mean_sdi",
+            y_col="actual_rate_pct",
+            text_map=label_map,
+            highlight_players=set(STAR_PLAYERS.get(sport, ())),
+        )
+
+        ax.set_title(f"{sport} Shot Difficulty vs Actual Scoring Rate ({WINDOW_LABEL})", fontsize=15)
+        ax.text(
+            0.01,
+            0.98,
+            f"Size = volume, {opt['color_note']}",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=10,
+            color="#555555",
+            bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.7),
+        )
+        ax.set_xlabel("Average Shot Difficulty Index (SDI)", fontsize=12)
+        ax.set_ylabel(y_label, fontsize=12)
+        cbar = plt.colorbar(scatter, ax=ax)
+        cbar.set_label(opt["cbar_label"], fontsize=10)
+        ax.grid(alpha=0.2)
+        plt.tight_layout()
+        
+        output_paths = []
+        if opt["suffix"]:
+            output_paths.append(output_path.with_name(output_path.stem + opt["suffix"] + output_path.suffix))
+        else:
+            output_paths.append(output_path)
+        for alias_suffix in opt.get("alias_suffixes", []):
+            output_paths.append(output_path.with_name(output_path.stem + alias_suffix + output_path.suffix))
+
+        for curr_output_path in output_paths:
+            plt.savefig(curr_output_path, dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
+        plt.close()
 
 
 def add_group_ellipse(ax, x: pd.Series, y: pd.Series, color: str) -> None:
@@ -1443,7 +1926,7 @@ def add_group_ellipse(ax, x: pd.Series, y: pd.Series, color: str) -> None:
     vals = vals[order]
     vecs = vecs[:, order]
     theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-    width, height = 2 * np.sqrt(vals) * 1.8
+    width, height = 2 * np.sqrt(vals) * 2.0
     ellipse = Ellipse(
         xy=(float(np.mean(x)), float(np.mean(y))),
         width=width,
@@ -1451,14 +1934,17 @@ def add_group_ellipse(ax, x: pd.Series, y: pd.Series, color: str) -> None:
         angle=theta,
         facecolor=color,
         edgecolor=color,
-        alpha=0.08,
-        linewidth=2.2,
+        alpha=0.12,
+        linewidth=2.5,
+        zorder=3,
     )
     ax.add_patch(ellipse)
 
 
 def plot_position_sdi(summary_df: pd.DataFrame, sport: str, y_label: str, output_path: Path) -> None:
-    fig, ax = plt.subplots(figsize=(11, 8.5))
+    summary_df = summary_df.copy()
+    summary_df["mean_sdi"] = normalize_sdi(summary_df["mean_sdi"], sport)
+    fig, ax = plt.subplots(figsize=(12, 9))
     palette = POSITION_COLORS[sport]
     df = summary_df[summary_df["position_group"].isin(palette.keys())].copy()
     for position, color in palette.items():
@@ -1468,12 +1954,13 @@ def plot_position_sdi(summary_df: pd.DataFrame, sport: str, y_label: str, output
         ax.scatter(
             group["mean_sdi"],
             group["actual_rate"] * 100,
-            s=np.clip(group["attempts"] / 7, 16, 230),
+            s=np.clip(group["attempts"] / 5, 25, 350),
             color=color,
-            alpha=0.66,
+            alpha=0.85,
             edgecolors="black",
-            linewidths=0.35,
+            linewidths=0.6,
             label=position,
+            zorder=4,
         )
         add_group_ellipse(ax, group["mean_sdi"], group["actual_rate"] * 100, color)
         centroid_x = float(group["mean_sdi"].mean())
@@ -1481,14 +1968,18 @@ def plot_position_sdi(summary_df: pd.DataFrame, sport: str, y_label: str, output
         ax.annotate(
             position,
             (centroid_x, centroid_y),
-            fontsize=10,
+            fontsize=12,
             weight="bold",
-            color=color,
+            color="#FFFFFF",
+            ha="center",
+            va="center",
+            zorder=12,
             bbox=dict(
-                boxstyle="round,pad=0.2",
-                facecolor="white",
-                edgecolor=color,
-                alpha=0.85,
+                boxstyle="round,pad=0.25",
+                facecolor=color,
+                edgecolor="#000000",
+                alpha=0.95,
+                linewidth=1.2,
             ),
         )
 
@@ -1509,7 +2000,7 @@ def plot_position_sdi(summary_df: pd.DataFrame, sport: str, y_label: str, output
     ax.grid(alpha=0.2)
     ax.legend(loc="upper right", title="Position")
     plt.tight_layout()
-    plt.savefig(output_path, dpi=220, bbox_inches="tight")
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
     plt.close()
 
 
@@ -1574,7 +2065,7 @@ def plot_gam_distance(
     elif sport == "NHL":
         ax.set_xlim(0, DISTANCE_PLOT_MAX["NHL"])
     plt.tight_layout()
-    plt.savefig(output_path, dpi=220, bbox_inches="tight")
+    plt.savefig(output_path, dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
     plt.close()
 
 

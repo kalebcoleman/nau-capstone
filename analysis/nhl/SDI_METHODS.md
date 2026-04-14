@@ -31,9 +31,9 @@ Then:
 ### Interpretation
 
 - Larger values mean harder shots by construction.
-- Player averages typically land in the `20s` and low `30s`, not in the `0-1` range.
-- This SDI is valid as a within-NHL ranking device.
-- It is not directly comparable in magnitude to the NBA SDI, because the NBA implementation is normalized to roughly `0-1`.
+- The raw weighted total lands in the `20s` and low `30s`, but the exported SDI used in the app and comparison figures is divided by `100`.
+- That final presentation-scale normalization keeps the NHL plot on the same `0-1` axis family as the NBA plot without changing player ordering or the scatter shape.
+- This SDI remains a within-NHL ranking device first; the rescaling only improves cross-sport readability.
 
 ### Limitation
 

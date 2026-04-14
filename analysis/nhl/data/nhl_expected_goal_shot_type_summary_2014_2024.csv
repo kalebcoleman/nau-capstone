@@ -1,0 +1,6 @@
+sport,model_family,target_label,factor_key,plot_type,x_value,fitted_effect,lower_ci,upper_ci,baseline_value,season_window,level_key,level_label
+NHL,LogisticGAM,Expected Goal,shot_type,discrete_summary,0.0,0.0,,,,2014-2024,baseline,Other
+NHL,LogisticGAM,Expected Goal,shot_type,discrete_summary,1.0,0.0,,,,2014-2024,is_wrist_shot,Wrist
+NHL,LogisticGAM,Expected Goal,shot_type,discrete_summary,2.0,0.0,,,,2014-2024,is_snap_shot,Snap
+NHL,LogisticGAM,Expected Goal,shot_type,discrete_summary,3.0,0.0,,,,2014-2024,is_slap_shot,Slap
+NHL,LogisticGAM,Expected Goal,shot_type,discrete_summary,4.0,0.0,,,,2014-2024,is_backhand,Backhand
