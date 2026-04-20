@@ -132,33 +132,36 @@ def build_sdi_scatter(df: pd.DataFrame, sport: str) -> go.Figure:
     )
     fig.update_layout(
         template="plotly_white",
-        title=dict(text=meta["title"], font=dict(color=SCATTER_TEXT)),
+        title=dict(text=f"<b>{meta['title']}</b>", font=dict(color=SCATTER_TEXT, size=20)),
         paper_bgcolor=SCATTER_BG,
         plot_bgcolor=SCATTER_BG,
         font=dict(color=SCATTER_TEXT),
         clickmode="event+select",
         margin=dict(l=40, r=20, t=60, b=50),
         coloraxis_colorbar=dict(
-            title=dict(text="Residual (Actual - Expected)", font=dict(color=SCATTER_TEXT)),
-            tickfont=dict(color=SCATTER_TEXT),
+            title=dict(
+                text="<b>Residual (Actual - Expected)</b>",
+                font=dict(color=SCATTER_TEXT, size=14),
+            ),
+            tickfont=dict(color=SCATTER_TEXT, size=12),
         ),
     )
     fig.update_xaxes(
-        title="Average Shot Difficulty Index (SDI)",
+        title="<b>Average Shot Difficulty Index (SDI)</b>",
         showgrid=True,
         gridcolor=SCATTER_GRID,
         zeroline=False,
-        title_font=dict(color=SCATTER_TEXT),
-        tickfont=dict(color=SCATTER_TEXT),
+        title_font=dict(color=SCATTER_TEXT, size=15),
+        tickfont=dict(color=SCATTER_TEXT, size=12),
     )
     fig.update_yaxes(
-        title=meta["y_axis_title"],
+        title=f"<b>{meta['y_axis_title']}</b>",
         tickformat=".0%",
         showgrid=True,
         gridcolor=SCATTER_GRID,
         zeroline=False,
-        title_font=dict(color=SCATTER_TEXT),
-        tickfont=dict(color=SCATTER_TEXT),
+        title_font=dict(color=SCATTER_TEXT, size=15),
+        tickfont=dict(color=SCATTER_TEXT, size=12),
     )
     return fig
 

@@ -191,6 +191,17 @@ PLAYER_LABEL_OFFSETS = {
     "Jordan Martinook": (18, -12),
 }
 
+NHL_SDI_LABEL_BLACKLIST = {
+    "Artemi Panarin",
+    "Brock Nelson",
+    "Darnell Nurse",
+    "Drew O'Connor",
+    "Evgeni Malkin",
+    "Jason Robertson",
+    "Roman Josi",
+    "Steven Stamkos",
+}
+
 EXPLORER_FIGURES = {
     (str(fig["sport"]), str(fig["factor_key"]), str(fig["plot_type"])): fig
     for fig in GAM_EXPLORER_FIGURES
@@ -363,6 +374,51 @@ def ensure_dirs() -> None:
     FIGURES_DIR.mkdir(exist_ok=True)
     NHL_DATA_DIR.mkdir(exist_ok=True)
     NHL_FIGURES_DIR.mkdir(exist_ok=True)
+
+
+def style_axis_text(
+    ax,
+    *,
+    title: str,
+    x_label: str,
+    y_label: str,
+    title_size: float = 15,
+    label_size: float = 12,
+    tick_size: float = 11,
+) -> None:
+    ax.set_title(title, fontsize=title_size, fontweight="bold")
+    ax.set_xlabel(x_label, fontsize=label_size, fontweight="bold")
+    ax.set_ylabel(y_label, fontsize=label_size, fontweight="bold")
+    ax.tick_params(axis="both", labelsize=tick_size, width=1.2)
+    for tick_label in [*ax.get_xticklabels(), *ax.get_yticklabels()]:
+        tick_label.set_fontweight("bold")
+    for spine in ax.spines.values():
+        spine.set_linewidth(1.2)
+
+
+def style_legend(legend) -> None:
+    if legend is None:
+        return
+    frame = legend.get_frame()
+    frame.set_linewidth(1.1)
+    for text in legend.get_texts():
+        text.set_fontweight("bold")
+    legend_title = legend.get_title()
+    if legend_title is not None:
+        legend_title.set_fontweight("bold")
+
+
+def style_colorbar(
+    cbar,
+    label: str,
+    *,
+    label_size: float = 10,
+    tick_size: float = 10,
+) -> None:
+    cbar.set_label(label, fontsize=label_size, fontweight="bold")
+    cbar.ax.tick_params(labelsize=tick_size, width=1.1)
+    for tick_label in cbar.ax.get_yticklabels():
+        tick_label.set_fontweight("bold")
 
 
 def plot_nhl_distance_effect(gam_df, output_path: Path) -> None:
@@ -751,13 +807,17 @@ def plot_continuous_effect(effect_df: pd.DataFrame, spec: dict[str, object], x_l
             alpha=0.8,
             label="Median Baseline",
         )
-    ax.set_title(str(spec["title"]), fontsize=15)
-    ax.set_xlabel(x_label, fontsize=12)
-    ax.set_ylabel(EFFECT_Y_LABEL, fontsize=12)
     if str(spec["factor_key"]) == "period":
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    style_axis_text(
+        ax,
+        title=str(spec["title"]),
+        x_label=x_label,
+        y_label=EFFECT_Y_LABEL,
+    )
     ax.grid(alpha=0.2)
-    ax.legend(loc="upper right", fontsize=9, frameon=True)
+    legend = ax.legend(loc="upper right", fontsize=9, frameon=True)
+    style_legend(legend)
     plt.tight_layout()
     plt.savefig(spec["figure_path"], dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
     plt.close()
@@ -778,10 +838,14 @@ def plot_discrete_summary(effect_df: pd.DataFrame, spec: dict[str, object], x_la
             ha="center",
             va="bottom" if value >= 0 else "top",
             fontsize=10,
+            fontweight="bold",
         )
-    ax.set_title(str(spec["title"]), fontsize=15)
-    ax.set_xlabel(x_label, fontsize=12)
-    ax.set_ylabel(EFFECT_Y_LABEL, fontsize=12)
+    style_axis_text(
+        ax,
+        title=str(spec["title"]),
+        x_label=x_label,
+        y_label=EFFECT_Y_LABEL,
+    )
     ax.grid(alpha=0.2, axis="y")
     plt.tight_layout()
     plt.savefig(spec["figure_path"], dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
@@ -809,10 +873,13 @@ def plot_spatial_surface(
         vmax=lim,
     )
     cbar = plt.colorbar(mesh, ax=ax)
-    cbar.set_label(EFFECT_Y_LABEL, fontsize=10)
-    ax.set_title(str(spec["title"]), fontsize=15)
-    ax.set_xlabel("X Coordinate", fontsize=12)
-    ax.set_ylabel("Y Coordinate", fontsize=12)
+    style_colorbar(cbar, EFFECT_Y_LABEL)
+    style_axis_text(
+        ax,
+        title=str(spec["title"]),
+        x_label="X Coordinate",
+        y_label="Y Coordinate",
+    )
     ax.set_aspect("equal")
     if sport == "NBA":
         ax.set_xlim(-250, 250)
@@ -1592,7 +1659,10 @@ def normalize_sdi(values: pd.Series, sport: str) -> pd.Series:
 def label_extremes(summary_df: pd.DataFrame, sport: str) -> pd.DataFrame:
     attempts_cutoff = summary_df["attempts"].median()
     high_attempts = summary_df[summary_df["attempts"] >= attempts_cutoff]
+    blocked_players = NHL_SDI_LABEL_BLACKLIST if sport == "NHL" else set()
     star_df = summary_df[summary_df["player"].isin(STAR_PLAYERS.get(sport, ()))]
+    if blocked_players:
+        star_df = star_df[~star_df["player"].isin(blocked_players)]
     star_df = star_df.sort_values(["attempts", "residual"], ascending=[False, False])
     
     if sport == "NHL":
@@ -1694,6 +1764,8 @@ def label_extremes(summary_df: pd.DataFrame, sport: str) -> pd.DataFrame:
             ],
             ignore_index=True,
         )
+    if blocked_players:
+        candidates = candidates[~candidates["player"].isin(blocked_players)].copy()
     return candidates.drop_duplicates(subset=["player"])
 
 
@@ -1883,7 +1955,12 @@ def plot_sdi_scatter(summary_df: pd.DataFrame, sport: str, y_label: str, output_
             highlight_players=set(STAR_PLAYERS.get(sport, ())),
         )
 
-        ax.set_title(f"{sport} Shot Difficulty vs Actual Scoring Rate ({WINDOW_LABEL})", fontsize=15)
+        style_axis_text(
+            ax,
+            title=f"{sport} Shot Difficulty vs Actual Scoring Rate ({WINDOW_LABEL})",
+            x_label="Average Shot Difficulty Index (SDI)",
+            y_label=y_label,
+        )
         ax.text(
             0.01,
             0.98,
@@ -1892,13 +1969,12 @@ def plot_sdi_scatter(summary_df: pd.DataFrame, sport: str, y_label: str, output_
             ha="left",
             va="top",
             fontsize=10,
+            fontweight="bold",
             color="#555555",
             bbox=dict(boxstyle="round,pad=0.2", facecolor="white", edgecolor="none", alpha=0.7),
         )
-        ax.set_xlabel("Average Shot Difficulty Index (SDI)", fontsize=12)
-        ax.set_ylabel(y_label, fontsize=12)
         cbar = plt.colorbar(scatter, ax=ax)
-        cbar.set_label(opt["cbar_label"], fontsize=10)
+        style_colorbar(cbar, opt["cbar_label"])
         ax.grid(alpha=0.2)
         plt.tight_layout()
         
@@ -1994,11 +2070,15 @@ def plot_position_sdi(summary_df: pd.DataFrame, sport: str, y_label: str, output
         text_map=exemplar_map,
     )
 
-    ax.set_title(f"{sport} SDI by Position Cluster ({WINDOW_LABEL})", fontsize=15)
-    ax.set_xlabel("Average Shot Difficulty Index (SDI)", fontsize=12)
-    ax.set_ylabel(y_label, fontsize=12)
+    style_axis_text(
+        ax,
+        title=f"{sport} SDI by Position Cluster ({WINDOW_LABEL})",
+        x_label="Average Shot Difficulty Index (SDI)",
+        y_label=y_label,
+    )
     ax.grid(alpha=0.2)
-    ax.legend(loc="upper right", title="Position")
+    legend = ax.legend(loc="upper right", title="Position")
+    style_legend(legend)
     plt.tight_layout()
     plt.savefig(output_path, dpi=POSTER_EXPORT_DPI, bbox_inches="tight")
     plt.close()
@@ -2052,14 +2132,15 @@ def plot_gam_distance(
             alpha=0.75,
             label="Median Distance",
         )
-    ax.set_title(
-        f"{sport} {model_label} Distance Effect with 95% CI ({WINDOW_LABEL})",
-        fontsize=15,
+    style_axis_text(
+        ax,
+        title=f"{sport} {model_label} Distance Effect with 95% CI ({WINDOW_LABEL})",
+        x_label="Shot Distance (feet)",
+        y_label="Marginal log-odds contribution",
     )
-    ax.set_xlabel("Shot Distance (feet)", fontsize=12)
-    ax.set_ylabel("Marginal log-odds contribution", fontsize=12)
     ax.grid(alpha=0.2)
-    ax.legend(loc="upper right", fontsize=9, frameon=True)
+    legend = ax.legend(loc="upper right", fontsize=9, frameon=True)
+    style_legend(legend)
     if x_max is not None:
         ax.set_xlim(0, x_max)
     elif sport == "NHL":

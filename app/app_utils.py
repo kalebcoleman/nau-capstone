@@ -23,6 +23,37 @@ MUTED_TEXT = "#98A1B3"
 ACCENT = "#F5C84C"
 
 
+def _style_axis_text(
+    ax,
+    *,
+    title: str,
+    x_label: str,
+    y_label: str,
+    title_size: float = 15,
+    label_size: float = 12,
+    tick_size: float = 11,
+) -> None:
+    ax.set_title(title, fontsize=title_size, fontweight="bold")
+    ax.set_xlabel(x_label, fontsize=label_size, fontweight="bold")
+    ax.set_ylabel(y_label, fontsize=label_size, fontweight="bold")
+    ax.tick_params(axis="both", labelsize=tick_size, width=1.2)
+    for tick_label in [*ax.get_xticklabels(), *ax.get_yticklabels()]:
+        tick_label.set_fontweight("bold")
+    for spine in ax.spines.values():
+        spine.set_linewidth(1.2)
+
+
+def _style_legend(legend) -> None:
+    if legend is None:
+        return
+    legend.get_frame().set_linewidth(1.1)
+    for text in legend.get_texts():
+        text.set_fontweight("bold")
+    legend_title = legend.get_title()
+    if legend_title is not None:
+        legend_title.set_fontweight("bold")
+
+
 def apply_theme() -> None:
     """Inject the shared poster-demo theme."""
     st.markdown(
@@ -252,11 +283,15 @@ def build_nhl_distance_comparison_figure(
         )
 
     ax.set_xlim(0, max_x)
-    ax.set_title(title, fontsize=15)
-    ax.set_xlabel("Shot Distance (feet)", fontsize=12)
-    ax.set_ylabel("Marginal log-odds contribution", fontsize=12)
+    _style_axis_text(
+        ax,
+        title=title,
+        x_label="Shot Distance (feet)",
+        y_label="Marginal log-odds contribution",
+    )
     ax.grid(alpha=0.2)
-    ax.legend(loc="upper right", fontsize=8.5, frameon=True)
+    legend = ax.legend(loc="upper right", fontsize=8.5, frameon=True)
+    _style_legend(legend)
     fig.tight_layout()
     return fig
 

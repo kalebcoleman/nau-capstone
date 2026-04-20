@@ -68,6 +68,37 @@ NHL_DISTANCE_LANDMARKS = [
 POSTER_EXPORT_DPI = 400
 
 
+def style_axis_text(
+    ax,
+    *,
+    title: str,
+    x_label: str,
+    y_label: str,
+    title_size: float = 15,
+    label_size: float = 12,
+    tick_size: float = 11,
+) -> None:
+    ax.set_title(title, fontsize=title_size, fontweight="bold")
+    ax.set_xlabel(x_label, fontsize=label_size, fontweight="bold")
+    ax.set_ylabel(y_label, fontsize=label_size, fontweight="bold")
+    ax.tick_params(axis="both", labelsize=tick_size, width=1.2)
+    for tick_label in [*ax.get_xticklabels(), *ax.get_yticklabels()]:
+        tick_label.set_fontweight("bold")
+    for spine in ax.spines.values():
+        spine.set_linewidth(1.2)
+
+
+def style_legend(legend) -> None:
+    if legend is None:
+        return
+    legend.get_frame().set_linewidth(1.1)
+    for text in legend.get_texts():
+        text.set_fontweight("bold")
+    legend_title = legend.get_title()
+    if legend_title is not None:
+        legend_title.set_fontweight("bold")
+
+
 def add_landmark_lines(ax, *, max_x: float) -> None:
     for label, x_value, color in NHL_DISTANCE_LANDMARKS:
         if x_value > max_x:
@@ -108,13 +139,17 @@ def plot_effect(
         label=baseline_label,
     )
     ax.set_xlim(0, float(gam_df["x_value"].max()))
-    ax.set_xlabel("Shot Distance (feet)")
-    ax.set_ylabel("Marginal log-odds contribution")
-    ax.set_title(title)
+    style_axis_text(
+        ax,
+        title=title,
+        x_label="Shot Distance (feet)",
+        y_label="Marginal log-odds contribution",
+    )
     ax.grid(True, alpha=0.3)
     if show_landmarks:
         add_landmark_lines(ax, max_x=float(gam_df["x_value"].max()))
-    ax.legend(loc="upper right")
+    legend = ax.legend(loc="upper right")
+    style_legend(legend)
     plt.tight_layout()
     plt.savefig(output_path, dpi=POSTER_EXPORT_DPI)
     plt.close()
@@ -169,11 +204,15 @@ def plot_distance_comparison(all_df, non_empty_df):
         label="All-shots median baseline",
     )
     ax.set_xlim(0, max(float(all_df["x_value"].max()), float(non_empty_df["x_value"].max())))
-    ax.set_xlabel("Shot Distance (feet)")
-    ax.set_ylabel("Marginal log-odds contribution")
-    ax.set_title("NHL GAM Distance Effect: All Shots vs Non-Empty-Net Shots")
+    style_axis_text(
+        ax,
+        title="NHL GAM Distance Effect: All Shots vs Non-Empty-Net Shots",
+        x_label="Shot Distance (feet)",
+        y_label="Marginal log-odds contribution",
+    )
     ax.grid(True, alpha=0.3)
-    ax.legend(loc="upper right")
+    legend = ax.legend(loc="upper right")
+    style_legend(legend)
     plt.tight_layout()
     plt.savefig(COMPARISON_FIGURE_OUTPUT_PATH, dpi=POSTER_EXPORT_DPI)
     plt.close()
