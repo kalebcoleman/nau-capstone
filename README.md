@@ -24,6 +24,7 @@ Core ideas used throughout the repo:
 
 ## Final Deliverables
 
+- [Research poster (PDF)](https://kalebcoleman.github.io/portfolio/static/nau-capstone-poster.pdf): the final "Cross-Sport Shot Analysis" poster, by Kanaan Law, Kaleb Coleman, and Drianna Walker
 - [Poster guide](docs/final-poster-guide.md): maps each poster section to the files, figures, and tables that support it
 - [Docs index](docs/README.md): quick index of proposal, comparison-story, and poster documentation
 - [Matched comparison story](docs/proposal/Matched_Comparison_Story.Rmd): reproducible write-up for the final cross-sport narrative
