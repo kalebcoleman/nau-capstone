@@ -122,3 +122,10 @@ python analysis/nba/export_poster_snapshot.py
 - The final poster story should reference the matched `2014-2024` outputs, not the standalone `2025-26` NBA-only files.
 - The dashboard is a companion surface, not the main source of record for the cross-sport comparison.
 - NHL `xGoal` is preserved as a reference column in the data, but the repo-owned comparison outputs use the NHL GAM workflow in `analysis/nhl`.
+
+## License
+
+The code and documentation I wrote are released under the [MIT License](LICENSE). Two things are not covered by it:
+
+- Files contributed by my teammates remain theirs: `analysis/nhl/capstonemodels.Rmd` and `docs/proposal/capstoneNHLProposalModels.Rmd` (Drianna Walker), and the proposal write-up PDF in `docs/proposal/` (Kanaan Law).
+- The shot and salary data come from the NBA Stats API, MoneyPuck, and Basketball Reference, and stay under those sources' terms.
