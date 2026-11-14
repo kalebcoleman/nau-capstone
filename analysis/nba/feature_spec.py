@@ -8,8 +8,6 @@ import numpy as np
 import pandas as pd
 
 ANALYSIS_DIR = Path(__file__).resolve().parent
-REPO_ROOT = ANALYSIS_DIR.parents[1]
-TOP_LEVEL_ARCHIVE_PATH = REPO_ROOT / "data" / "nba_shots_2014_2024.csv.gz"
 ANALYSIS_ARCHIVE_PATH = ANALYSIS_DIR / "data" / "nba_shots_2014_2024.csv.gz"
 TRAINING_DATA_PATH = ANALYSIS_DIR / "data" / "nba_shots_training.csv.gz"
 PLAYER_SUMMARY_PATH = ANALYSIS_DIR / "data" / "player_summary.csv"

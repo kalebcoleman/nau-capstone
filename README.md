@@ -61,12 +61,12 @@ nau-capstone/
 
 ## Key Data Files
 
-Top-level archives:
+Shot archives:
 
 | Dataset | File | Notes |
 | --- | --- | --- |
-| NBA shot archive | [`data/nba_shots_2014_2024.csv.gz`](data/nba_shots_2014_2024.csv.gz) | Historical archive used for the matched cross-sport comparison |
-| NHL shot archive | [`data/nhl_shots_2014_2024.csv.gz`](data/nhl_shots_2014_2024.csv.gz) | Historical archive used for the matched cross-sport comparison |
+| NBA shot archive | [`analysis/nba/data/nba_shots_2014_2024.csv.gz`](analysis/nba/data/nba_shots_2014_2024.csv.gz) | Historical archive used for the matched cross-sport comparison |
+| NHL shot archive | [`analysis/nhl/data/app_data/nhl_shots_2014_2024.csv.gz`](analysis/nhl/data/app_data/nhl_shots_2014_2024.csv.gz) | Historical NHL archive used by the NHL models and the Streamlit pages |
 
 Primary poster/demo outputs:
 
