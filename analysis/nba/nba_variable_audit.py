@@ -19,7 +19,6 @@ from feature_spec import (
     CURRENT_FEATURE_USAGE,
     ENGINEERED_FEATURE_METADATA,
     RAW_DISCOVERY_PRIORITY_COLUMNS,
-    TOP_LEVEL_ARCHIVE_PATH,
     current_usage_rows,
     engineer_nba_features,
 )
@@ -57,7 +56,7 @@ CATEGORICAL_AUDIT_VARIABLES = [
 
 
 def load_full_archive() -> tuple[pd.DataFrame, Path]:
-    for path in [TOP_LEVEL_ARCHIVE_PATH, ANALYSIS_ARCHIVE_PATH]:
+    for path in [ANALYSIS_ARCHIVE_PATH]:
         if path.exists():
             usecols = [
                 "TEAM_NAME",
